@@ -1,7 +1,12 @@
-# Tauri + React + Typescript
+# 📃 Folio
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+A simple hierarchical note-taking app.
 
-## Recommended IDE Setup
+🚧 Work in progress
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Platform support
+✅ MacOS\
+❓ Linux (Should work but not tested nor optimized)\
+❓ Windows (Should work but not tested nor optimized)\
+❌ iOS (Planned)\
+❌ Android (Planned)
