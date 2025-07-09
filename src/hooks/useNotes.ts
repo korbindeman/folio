@@ -157,7 +157,7 @@ interface UseNoteReturn {
 
 export function useNote(noteId: string | null): UseNoteReturn {
 	const [note, setNote] = useState<Note | null>(null);
-	const [children, setChildren] = useState<Note[]>([]);
+	const [children, _setChildren] = useState<Note[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -260,6 +260,7 @@ export function useNoteHierarchy() {
 			const stack = [noteId];
 
 			while (stack.length > 0) {
+				// biome-ignore lint/style/noNonNullAssertion: stack will always have a length greater than 0
 				const currentId = stack.pop()!;
 				const children = Array.from(notes.values()).filter(
 					(note) => note.parentId === currentId,

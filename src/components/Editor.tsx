@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useNote } from "../hooks/useNotes";
 
 interface EditorProps {
-	noteId: string;
+	noteId: string | null;
 	autoSave?: boolean;
 	autoSaveDelay?: number;
 }
@@ -93,6 +93,14 @@ const Editor = ({
 			}
 		};
 	}, [editor, updateNote, autoSave]);
+
+	if (!noteId) {
+		return (
+			<div className="flex h-screen items-center justify-center">
+				<div className="text-gray-500">No note selected</div>
+			</div>
+		);
+	}
 
 	if (loading && !note) {
 		return (

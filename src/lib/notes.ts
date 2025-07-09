@@ -26,6 +26,7 @@ export async function initializeNoteDir() {
 	}
 }
 
+// TODO: these notes should not all be loaded from the start, only the root and pinned notes
 export async function loadNotes() {
 	const files = await readDir(noteDir, {
 		baseDir,
