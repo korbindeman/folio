@@ -3,5 +3,16 @@
 	"identifier": "default",
 	"description": "Capability for the main window",
 	"windows": ["main"],
-	"permissions": ["core:default", "opener:default"]
+	"permissions": [
+		"core:default",
+		"opener:default",
+		{
+			"identifier": "fs:allow-document-read-recursive",
+			"allow": [{ "path": "folio/*.json" }]
+		},
+		{
+			"identifier": "fs:allow-document-write-recursive",
+			"allow": [{ "path": "folio/*.json" }]
+		}
+	]
 }
