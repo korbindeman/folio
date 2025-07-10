@@ -54,7 +54,6 @@ function Dropdown({
 function Breadcrumb({
 	note,
 	text,
-	last,
 	active,
 	index,
 	onDropdownToggle,
@@ -63,7 +62,6 @@ function Breadcrumb({
 }: {
 	note?: Note;
 	text: string;
-	last?: boolean;
 	active?: boolean;
 	index: number;
 	onDropdownToggle: (index: number) => void;
@@ -73,13 +71,13 @@ function Breadcrumb({
 	const { navigateToNote } = useActiveNote();
 
 	const handleClick = () => {
-		if (note && !last) {
+		if (note) {
 			navigateToNote(note.id);
 		}
 	};
 
 	const handleArrowClick = () => {
-		if (!last) {
+		if (dropdownNotes.length > 0) {
 			onDropdownToggle(index);
 		}
 	};
@@ -89,21 +87,21 @@ function Breadcrumb({
 			<div className="rounded">
 				<button
 					type="button"
-					className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
-					onClick={handleArrowClick}
-					disabled={last}
-				>
-					&gt;
-				</button>
-				<button
-					type="button"
-					className={`rounded px-1 py-0.5 transition cursor-pointer hover:bg-[#00000009] ${last && "opacity-50"} ${
+					className={`rounded px-1 py-0.5 transition cursor-pointer hover:bg-[#00000009] ${
 						active && "font-bold"
 					}`}
 					onClick={handleClick}
-					disabled={last || !note}
+					disabled={!note}
 				>
 					{text}
+				</button>
+				<button
+					type="button"
+					className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+					onClick={handleArrowClick}
+					disabled={dropdownNotes.length === 0}
+				>
+					&gt;
 				</button>
 			</div>
 			{isDropdownOpen && (
@@ -111,9 +109,9 @@ function Breadcrumb({
 					notes={dropdownNotes}
 					onSelect={(selectedNote) => {
 						navigateToNote(selectedNote.id);
-						onDropdownToggle(-1); // Close dropdown
+						onDropdownToggle(-2); // Close dropdown
 					}}
-					onClose={() => onDropdownToggle(-1)}
+					onClose={() => onDropdownToggle(-2)}
 				/>
 			)}
 		</div>
@@ -122,27 +120,39 @@ function Breadcrumb({
 
 function Navigation() {
 	const { activeNoteId, getCurrentNote } = useActiveNote();
-	const { getNotePath, notes } = useNoteHierarchy();
-	const [openDropdownIndex, setOpenDropdownIndex] = useState<number>(-1);
+	const { getNotePath, notes, getRootNotes } = useNoteHierarchy();
+	const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+		null,
+	);
 
 	const path = activeNoteId ? getNotePath(activeNoteId) : [];
 	const currentNote = getCurrentNote();
 
-	console.log(path);
-
 	const handleDropdownToggle = (index: number) => {
-		setOpenDropdownIndex(openDropdownIndex === index ? -1 : index);
+		if (index === -2) {
+			// Special case for closing dropdown
+			setOpenDropdownIndex(null);
+		} else {
+			setOpenDropdownIndex(openDropdownIndex === index ? null : index);
+		}
 	};
 
-	const getSiblingNotes = (index: number): Note[] => {
+	const handleRootDropdownToggle = () => {
+		setOpenDropdownIndex(openDropdownIndex === -1 ? null : -1);
+	};
+
+	const getChildNotes = (index: number): Note[] => {
+		if (index === -1) {
+			// Root dropdown - show all root notes
+			return getRootNotes();
+		}
+
 		if (index >= path.length) return [];
 
-		// Get the parent of the note at this index
-		const parentId = index === 0 ? null : path[index - 1].id;
-
-		// Return all notes with the same parent
+		// Show children of the note at this index
+		const noteId = path[index].id;
 		return Array.from(notes.values()).filter(
-			(note) => note.parentId === parentId,
+			(note) => note.parentId === noteId,
 		);
 	};
 
@@ -162,6 +172,27 @@ function Navigation() {
 		<nav className="px-2 pb-0.5">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center font-mono text-sm tracking-tight">
+					{/* Root dropdown */}
+					<div className="relative">
+						<button
+							type="button"
+							className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+							onClick={handleRootDropdownToggle}
+						>
+							&gt;
+						</button>
+						{openDropdownIndex === -1 && (
+							<Dropdown
+								notes={getRootNotes()}
+								onSelect={(selectedNote) => {
+									navigateToNote(selectedNote.id);
+									handleDropdownToggle(-2);
+								}}
+								onClose={() => handleDropdownToggle(-2)}
+							/>
+						)}
+					</div>
+
 					{path.map((note, index) => (
 						<Breadcrumb
 							key={note.id}
@@ -171,17 +202,9 @@ function Navigation() {
 							index={index}
 							onDropdownToggle={handleDropdownToggle}
 							isDropdownOpen={openDropdownIndex === index}
-							dropdownNotes={getSiblingNotes(index)}
+							dropdownNotes={getChildNotes(index)}
 						/>
 					))}
-					<Breadcrumb
-						text="new"
-						last
-						index={path.length}
-						onDropdownToggle={handleDropdownToggle}
-						isDropdownOpen={false}
-						dropdownNotes={[]}
-					/>
 				</div>
 				{currentNote && (
 					<div className="text-sm font-medium text-gray-700 truncate max-w-xs">
