@@ -7,10 +7,12 @@ function Dropdown({
 	notes,
 	onSelect,
 	onClose,
+	onCreateNew,
 }: {
 	notes: Note[];
 	onSelect: (note: Note) => void;
 	onClose: () => void;
+	onCreateNew: () => void;
 }) {
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -33,8 +35,15 @@ function Dropdown({
 			ref={dropdownRef}
 			className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-48 max-h-64 overflow-y-auto"
 		>
+			<button
+				type="button"
+				className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors border-b border-gray-100 font-medium text-blue-600"
+				onClick={onCreateNew}
+			>
+				+ New note
+			</button>
 			{notes.length === 0 ? (
-				<div className="px-3 py-2 text-sm text-gray-500">No notes found</div>
+				<div className="px-3 py-2 text-sm text-gray-500">No other notes</div>
 			) : (
 				notes.map((note) => (
 					<button
@@ -59,6 +68,7 @@ function Breadcrumb({
 	onDropdownToggle,
 	isDropdownOpen,
 	dropdownNotes,
+	onCreateChild,
 }: {
 	note?: Note;
 	text: string;
@@ -67,6 +77,7 @@ function Breadcrumb({
 	onDropdownToggle: (index: number) => void;
 	isDropdownOpen: boolean;
 	dropdownNotes: Note[];
+	onCreateChild: (parentId: string) => void;
 }) {
 	const { navigateToNote } = useActiveNote();
 
@@ -79,6 +90,9 @@ function Breadcrumb({
 	const handleArrowClick = () => {
 		if (dropdownNotes.length > 0) {
 			onDropdownToggle(index);
+		} else if (note && active) {
+			// Create new child for active note with no children
+			onCreateChild(note.id);
 		}
 	};
 
@@ -99,9 +113,9 @@ function Breadcrumb({
 					type="button"
 					className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
 					onClick={handleArrowClick}
-					disabled={dropdownNotes.length === 0}
+					disabled={dropdownNotes.length === 0 && (!note || !active)}
 				>
-					&gt;
+					{dropdownNotes.length === 0 && note && active ? "+" : ">"}
 				</button>
 			</div>
 			{isDropdownOpen && (
@@ -112,6 +126,12 @@ function Breadcrumb({
 						onDropdownToggle(-2); // Close dropdown
 					}}
 					onClose={() => onDropdownToggle(-2)}
+					onCreateNew={() => {
+						if (note) {
+							onCreateChild(note.id);
+						}
+						onDropdownToggle(-2); // Close dropdown
+					}}
 				/>
 			)}
 		</div>
@@ -119,8 +139,9 @@ function Breadcrumb({
 }
 
 function Navigation() {
-	const { activeNoteId, getCurrentNote } = useActiveNote();
-	const { getNotePath, notes, getRootNotes } = useNoteHierarchy();
+	const { activeNoteId, getCurrentNote, navigateToNote } = useActiveNote();
+	const { getNotePath, notes, getRootNotes, createNewNote } =
+		useNoteHierarchy();
 	const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
 		null,
 	);
@@ -139,6 +160,13 @@ function Navigation() {
 
 	const handleRootDropdownToggle = () => {
 		setOpenDropdownIndex(openDropdownIndex === -1 ? null : -1);
+	};
+
+	const handleCreateChild = async (parentId: string) => {
+		const newNoteId = await createNewNote(parentId);
+		if (newNoteId) {
+			navigateToNote(newNoteId);
+		}
 	};
 
 	const getChildNotes = (index: number): Note[] => {
@@ -189,6 +217,10 @@ function Navigation() {
 									handleDropdownToggle(-2);
 								}}
 								onClose={() => handleDropdownToggle(-2)}
+								onCreateNew={() => {
+									handleCreateChild(null);
+									handleDropdownToggle(-2);
+								}}
 							/>
 						)}
 					</div>
@@ -203,6 +235,7 @@ function Navigation() {
 							onDropdownToggle={handleDropdownToggle}
 							isDropdownOpen={openDropdownIndex === index}
 							dropdownNotes={getChildNotes(index)}
+							onCreateChild={handleCreateChild}
 						/>
 					))}
 				</div>
