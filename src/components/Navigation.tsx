@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useActiveNote } from "../contexts/ActiveNoteContext";
-import { useNoteHierarchy } from "../hooks/useNotes";
+import { useNoteStore } from "../stores/notes";
 import type { Note } from "../types/notes";
 
 function Dropdown({
@@ -69,6 +69,13 @@ function Breadcrumb({
 	isDropdownOpen,
 	dropdownNotes,
 	onCreateChild,
+	isEditing,
+	editingTitle,
+	onEditingTitleChange,
+	onStartEditing,
+	onSaveTitle,
+	onCancelEditing,
+	onTitleKeyDown,
 }: {
 	note?: Note;
 	text: string;
@@ -78,6 +85,13 @@ function Breadcrumb({
 	isDropdownOpen: boolean;
 	dropdownNotes: Note[];
 	onCreateChild: (parentId: string) => void;
+	isEditing: boolean;
+	editingTitle: string;
+	onEditingTitleChange: (title: string) => void;
+	onStartEditing: (noteId: string, title: string) => void;
+	onSaveTitle: () => void;
+	onCancelEditing: () => void;
+	onTitleKeyDown: (e: React.KeyboardEvent) => void;
 }) {
 	const { navigateToNote } = useActiveNote();
 
@@ -99,16 +113,31 @@ function Breadcrumb({
 	return (
 		<div className="relative">
 			<div className="rounded">
-				<button
-					type="button"
-					className={`rounded px-1 py-0.5 transition cursor-pointer hover:bg-[#00000009] ${
-						active && "font-bold"
-					}`}
-					onClick={handleClick}
-					disabled={!note}
-				>
-					{text}
-				</button>
+				{isEditing && note ? (
+					<input
+						type="text"
+						value={editingTitle}
+						onChange={(e) => onEditingTitleChange(e.target.value)}
+						onKeyDown={onTitleKeyDown}
+						onBlur={onSaveTitle}
+						className="bg-transparent border-none outline-none font-mono text-sm px-1 py-0.5 rounded"
+						autoFocus
+					/>
+				) : (
+					<button
+						type="button"
+						className={`rounded px-1 py-0.5 transition cursor-pointer hover:bg-[#00000009] ${
+							active && "font-bold"
+						}`}
+						onClick={note && !active ? handleClick : note && active ? () => onStartEditing(note.id, note.title) : undefined}
+						onDoubleClick={
+							note && !active ? () => onStartEditing(note.id, note.title) : undefined
+						}
+						disabled={!note}
+					>
+						{text}
+					</button>
+				)}
 				<button
 					type="button"
 					className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
@@ -140,11 +169,18 @@ function Breadcrumb({
 
 function Navigation() {
 	const { activeNoteId, getCurrentNote, navigateToNote } = useActiveNote();
-	const { getNotePath, notes, getRootNotes, createNewNote } =
-		useNoteHierarchy();
+	const {
+		getNotePath,
+		getRootNotes,
+		createNewNote,
+		updateNoteTitle,
+		getChildNotes,
+	} = useNoteStore();
 	const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
 		null,
 	);
+	const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+	const [editingTitle, setEditingTitle] = useState<string>("");
 
 	const path = activeNoteId ? getNotePath(activeNoteId) : [];
 	const currentNote = getCurrentNote();
@@ -169,7 +205,7 @@ function Navigation() {
 		}
 	};
 
-	const getChildNotes = (index: number): Note[] => {
+	const getChildNotesForDropdown = (index: number): Note[] => {
 		if (index === -1) {
 			// Root dropdown - show all root notes
 			return getRootNotes();
@@ -179,9 +215,39 @@ function Navigation() {
 
 		// Show children of the note at this index
 		const noteId = path[index].id;
-		return Array.from(notes.values()).filter(
-			(note) => note.parentId === noteId,
-		);
+		return getChildNotes(noteId);
+	};
+
+	const startEditingTitle = (noteId: string, currentTitle: string) => {
+		setEditingNoteId(noteId);
+		setEditingTitle(currentTitle);
+	};
+
+	const saveTitle = async () => {
+		if (!editingNoteId || !editingTitle.trim()) return;
+
+		try {
+			await updateNoteTitle(editingNoteId, editingTitle.trim());
+			setEditingNoteId(null);
+			setEditingTitle("");
+		} catch (err) {
+			console.error("Failed to save title:", err);
+		}
+	};
+
+	const cancelEditing = () => {
+		setEditingNoteId(null);
+		setEditingTitle("");
+	};
+
+	const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			saveTitle();
+		} else if (e.key === "Escape") {
+			e.preventDefault();
+			cancelEditing();
+		}
 	};
 
 	if (!activeNoteId) {
@@ -234,16 +300,18 @@ function Navigation() {
 							index={index}
 							onDropdownToggle={handleDropdownToggle}
 							isDropdownOpen={openDropdownIndex === index}
-							dropdownNotes={getChildNotes(index)}
+							dropdownNotes={getChildNotesForDropdown(index)}
 							onCreateChild={handleCreateChild}
+							isEditing={editingNoteId === note.id}
+							editingTitle={editingTitle}
+							onEditingTitleChange={setEditingTitle}
+							onStartEditing={startEditingTitle}
+							onSaveTitle={saveTitle}
+							onCancelEditing={cancelEditing}
+							onTitleKeyDown={handleTitleKeyDown}
 						/>
 					))}
 				</div>
-				{currentNote && (
-					<div className="text-sm font-medium text-gray-700 truncate max-w-xs">
-						{currentNote.title}
-					</div>
-				)}
 			</div>
 		</nav>
 	);

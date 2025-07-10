@@ -1,7 +1,7 @@
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef } from "react";
-import { useNote } from "../hooks/useNotes";
+import { useNoteStore } from "../stores/notes";
 
 interface EditorProps {
 	noteId: string | null;
@@ -12,14 +12,17 @@ interface EditorProps {
 const Editor = ({
 	noteId,
 	autoSave = true,
-	autoSaveDelay = 100,
+	autoSaveDelay = 1000,
 }: EditorProps) => {
-	const { note, updateNote, loading, error } = useNote(noteId);
+	const { getNote, updateNoteContent, loading, error } = useNoteStore();
+	const note = noteId ? getNote(noteId) : null;
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 	const lastSavedContentRef = useRef<string>("");
 
 	const debouncedSave = useCallback(
 		(content: JSONContent) => {
+			if (!noteId) return;
+
 			const contentString = JSON.stringify(content);
 			if (!autoSave || contentString === lastSavedContentRef.current) return;
 
@@ -29,14 +32,14 @@ const Editor = ({
 
 			saveTimeoutRef.current = setTimeout(async () => {
 				try {
-					await updateNote({ content });
+					await updateNoteContent(noteId, content);
 					lastSavedContentRef.current = contentString;
 				} catch (err) {
 					console.error("Failed to save note:", err);
 				}
 			}, autoSaveDelay);
 		},
-		[updateNote, autoSave, autoSaveDelay],
+		[noteId, updateNoteContent, autoSave, autoSaveDelay],
 	);
 
 	const editor = useEditor({
@@ -84,15 +87,15 @@ const Editor = ({
 	// Force save before unmount
 	useEffect(() => {
 		return () => {
-			if (editor && autoSave) {
+			if (editor && autoSave && noteId) {
 				const content = editor.getJSON();
 				const contentString = JSON.stringify(content);
 				if (contentString !== lastSavedContentRef.current) {
-					updateNote({ content });
+					updateNoteContent(noteId, content);
 				}
 			}
 		};
-	}, [editor, updateNote, autoSave]);
+	}, [editor, updateNoteContent, autoSave, noteId]);
 
 	if (!noteId) {
 		return (

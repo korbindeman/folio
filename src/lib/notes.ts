@@ -53,7 +53,7 @@ export async function createNote(parentId: string | null) {
 
 	const note: Note = {
 		id: noteId,
-		title: "",
+		title: "untitled",
 		content: [],
 		createdAt: new Date(),
 		updatedAt: new Date(),
