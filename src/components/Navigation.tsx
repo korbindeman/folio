@@ -94,6 +94,7 @@ function Breadcrumb({
 	onTitleKeyDown: (e: React.KeyboardEvent) => void;
 }) {
 	const { navigateToNote } = useActiveNote();
+	const buttonRef = useRef<HTMLButtonElement>(null);
 
 	const handleClick = () => {
 		if (note) {
@@ -120,32 +121,50 @@ function Breadcrumb({
 						onChange={(e) => onEditingTitleChange(e.target.value)}
 						onKeyDown={onTitleKeyDown}
 						onBlur={onSaveTitle}
-						className="bg-transparent border-none outline-none font-mono text-sm px-1 py-0.5 rounded"
+						className={`bg-transparent border-none outline-none font-mono text-sm px-1 py-0.5 rounded transition hover:bg-[#00000009] ${
+							active && "font-bold hover:bg-transparent w-fit"
+						}`}
+						onFocus={(e) => {
+							if (editingTitle.toLowerCase() === "untitled") {
+								e.target.select();
+							}
+						}}
 						autoFocus
 					/>
 				) : (
 					<button
+						ref={buttonRef}
 						type="button"
-						className={`rounded px-1 py-0.5 transition cursor-pointer hover:bg-[#00000009] ${
+						className={`rounded px-1 py-0.5 transition hover:bg-[#00000009] ${
 							active && "font-bold"
-						}`}
-						onClick={note && !active ? handleClick : note && active ? () => onStartEditing(note.id, note.title) : undefined}
+						} ${active ? "cursor-text" : "cursor-pointer"}`}
+						onClick={
+							note && !active
+								? handleClick
+								: note && active
+									? () => onStartEditing(note.id, note.title)
+									: undefined
+						}
 						onDoubleClick={
-							note && !active ? () => onStartEditing(note.id, note.title) : undefined
+							note && !active
+								? () => onStartEditing(note.id, note.title)
+								: undefined
 						}
 						disabled={!note}
 					>
 						{text}
 					</button>
 				)}
-				<button
-					type="button"
-					className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
-					onClick={handleArrowClick}
-					disabled={dropdownNotes.length === 0 && (!note || !active)}
-				>
-					{dropdownNotes.length === 0 && note && active ? "+" : ">"}
-				</button>
+				{!isEditing && (
+					<button
+						type="button"
+						className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+						onClick={handleArrowClick}
+						disabled={dropdownNotes.length === 0 && (!note || !active)}
+					>
+						{dropdownNotes.length === 0 && note && active ? "+" : ">"}
+					</button>
+				)}
 			</div>
 			{isDropdownOpen && (
 				<Dropdown
@@ -224,10 +243,12 @@ function Navigation() {
 	};
 
 	const saveTitle = async () => {
-		if (!editingNoteId || !editingTitle.trim()) return;
+		if (!editingNoteId) return;
+
+		const finalTitle = editingTitle.trim() || "untitled";
 
 		try {
-			await updateNoteTitle(editingNoteId, editingTitle.trim());
+			await updateNoteTitle(editingNoteId, finalTitle);
 			setEditingNoteId(null);
 			setEditingTitle("");
 		} catch (err) {
