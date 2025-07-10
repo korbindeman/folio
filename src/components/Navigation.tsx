@@ -8,11 +8,13 @@ function Dropdown({
 	onSelect,
 	onClose,
 	onCreateNew,
+	onArchive,
 }: {
 	notes: Note[];
 	onSelect: (note: Note) => void;
 	onClose: () => void;
 	onCreateNew: () => void;
+	onArchive: (noteId: string) => void;
 }) {
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -46,14 +48,29 @@ function Dropdown({
 				<div className="px-3 py-2 text-sm text-gray-500">No other notes</div>
 			) : (
 				notes.map((note) => (
-					<button
+					<div
 						key={note.id}
-						type="button"
-						className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors"
-						onClick={() => onSelect(note)}
+						className="flex items-center group hover:bg-gray-100 transition-colors"
 					>
-						{note.title}
-					</button>
+						<button
+							type="button"
+							className="flex-1 text-left px-3 py-2 text-sm"
+							onClick={() => onSelect(note)}
+						>
+							{note.title}
+						</button>
+						<button
+							type="button"
+							className="px-2 py-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+							onClick={(e) => {
+								e.stopPropagation();
+								onArchive(note.id);
+							}}
+							title="Archive note"
+						>
+							×
+						</button>
+					</div>
 				))
 			)}
 		</div>
@@ -69,12 +86,12 @@ function Breadcrumb({
 	isDropdownOpen,
 	dropdownNotes,
 	onCreateChild,
+	onArchive,
 	isEditing,
 	editingTitle,
 	onEditingTitleChange,
 	onStartEditing,
 	onSaveTitle,
-	onCancelEditing,
 	onTitleKeyDown,
 }: {
 	note?: Note;
@@ -85,6 +102,7 @@ function Breadcrumb({
 	isDropdownOpen: boolean;
 	dropdownNotes: Note[];
 	onCreateChild: (parentId: string) => void;
+	onArchive: (noteId: string) => void;
 	isEditing: boolean;
 	editingTitle: string;
 	onEditingTitleChange: (title: string) => void;
@@ -129,6 +147,7 @@ function Breadcrumb({
 								e.target.select();
 							}
 						}}
+						// biome-ignore lint/a11y/noAutofocus: doesn't work without it
 						autoFocus
 					/>
 				) : (
@@ -180,6 +199,7 @@ function Breadcrumb({
 						}
 						onDropdownToggle(-2); // Close dropdown
 					}}
+					onArchive={onArchive}
 				/>
 			)}
 		</div>
@@ -187,13 +207,14 @@ function Breadcrumb({
 }
 
 function Navigation() {
-	const { activeNoteId, getCurrentNote, navigateToNote } = useActiveNote();
+	const { activeNoteId, navigateToNote } = useActiveNote();
 	const {
 		getNotePath,
 		getRootNotes,
 		createNewNote,
 		updateNoteTitle,
 		getChildNotes,
+		archiveNote,
 	} = useNoteStore();
 	const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
 		null,
@@ -202,7 +223,6 @@ function Navigation() {
 	const [editingTitle, setEditingTitle] = useState<string>("");
 
 	const path = activeNoteId ? getNotePath(activeNoteId) : [];
-	const currentNote = getCurrentNote();
 
 	const handleDropdownToggle = (index: number) => {
 		if (index === -2) {
@@ -271,6 +291,27 @@ function Navigation() {
 		}
 	};
 
+	const handleArchive = async (noteId: string) => {
+		try {
+			await archiveNote(noteId);
+			// If the archived note was the active note, we might want to navigate away
+			if (noteId === activeNoteId) {
+				// Navigate to parent or first available note
+				const archivedNote = path.find((n) => n.id === noteId);
+				if (archivedNote?.parentId) {
+					navigateToNote(archivedNote.parentId);
+				} else {
+					const rootNotes = getRootNotes();
+					if (rootNotes.length > 0) {
+						navigateToNote(rootNotes[0].id);
+					}
+				}
+			}
+		} catch (err) {
+			console.error("Failed to archive note:", err);
+		}
+	};
+
 	if (!activeNoteId) {
 		return (
 			<nav className="px-2 pb-0.5">
@@ -305,9 +346,10 @@ function Navigation() {
 								}}
 								onClose={() => handleDropdownToggle(-2)}
 								onCreateNew={() => {
-									handleCreateChild(null);
+									handleCreateChild("");
 									handleDropdownToggle(-2);
 								}}
+								onArchive={handleArchive}
 							/>
 						)}
 					</div>
@@ -323,6 +365,7 @@ function Navigation() {
 							isDropdownOpen={openDropdownIndex === index}
 							dropdownNotes={getChildNotesForDropdown(index)}
 							onCreateChild={handleCreateChild}
+							onArchive={handleArchive}
 							isEditing={editingNoteId === note.id}
 							editingTitle={editingTitle}
 							onEditingTitleChange={setEditingTitle}

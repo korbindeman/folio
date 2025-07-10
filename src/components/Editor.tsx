@@ -1,3 +1,5 @@
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef } from "react";
@@ -43,7 +45,16 @@ const Editor = ({
 	);
 
 	const editor = useEditor({
-		extensions: [StarterKit],
+		extensions: [
+			StarterKit,
+			TaskList.configure({}),
+			TaskItem.configure({
+				nested: true,
+				HTMLAttributes: {
+					class: "flex items-start gap-1",
+				},
+			}),
+		],
 		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
 		editorProps: {
 			attributes: {

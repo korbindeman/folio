@@ -8,11 +8,11 @@
 		"opener:default",
 		{
 			"identifier": "fs:allow-document-read-recursive",
-			"allow": [{ "path": "folio/*.json" }]
+			"allow": [{ "path": "folio/*" }]
 		},
 		{
 			"identifier": "fs:allow-document-write-recursive",
-			"allow": [{ "path": "folio/*.json" }]
+			"allow": [{ "path": "folio/*" }]
 		}
 	]
 }

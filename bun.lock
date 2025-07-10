@@ -8,6 +8,8 @@
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-fs": "~2",
         "@tauri-apps/plugin-opener": "^2",
+        "@tiptap/extension-task-item": "^2.25.0",
+        "@tiptap/extension-task-list": "^2.25.0",
         "@tiptap/pm": "^2.25.0",
         "@tiptap/react": "^2.25.0",
         "@tiptap/starter-kit": "^2.25.0",
@@ -294,6 +296,10 @@
     "@tiptap/extension-paragraph": ["@tiptap/extension-paragraph@2.25.0", "", { "peerDependencies": { "@tiptap/core": "^2.7.0" } }, "sha512-53gpWMPedkWVDp3u/1sLt6vnr3BWz4vArGCmmabLucCI2Yl4R6S/AQ9yj/+jOHvWbXCroCbKtmmwxJl32uGN2w=="],
 
     "@tiptap/extension-strike": ["@tiptap/extension-strike@2.25.0", "", { "peerDependencies": { "@tiptap/core": "^2.7.0" } }, "sha512-Z5YBKnv4N6MMD1LEo9XbmWnmdXavZKOOJt/OkXYFZ3KgzB52Z3q3DDfH+NyeCtKKSWqWVxbBHKLnsojDerSf2g=="],
+
+    "@tiptap/extension-task-item": ["@tiptap/extension-task-item@2.25.0", "", { "peerDependencies": { "@tiptap/core": "^2.7.0", "@tiptap/pm": "^2.7.0" } }, "sha512-8F7Z7jbsyGrPLHQCn+n39zdqIgxwR1kJ1nL5ZwhEW3ZhJgkFF0WMJSv36mwIJwL08p8um/c6g72AYB/e8CD7eA=="],
+
+    "@tiptap/extension-task-list": ["@tiptap/extension-task-list@2.25.0", "", { "peerDependencies": { "@tiptap/core": "^2.7.0" } }, "sha512-2mASqp8MJ0dyc1OK6c8P7m/zwoVDv8PV+XsRR9O3tpIz/zjUVrOl0W4IndjUPBMa7cpJX8fGj8iC3DaRNpSMcg=="],
 
     "@tiptap/extension-text": ["@tiptap/extension-text@2.25.0", "", { "peerDependencies": { "@tiptap/core": "^2.7.0" } }, "sha512-HlZL86rihpP/R8+dqRrvzSRmiPpx6ctlAKM9PnWT/WRMeI4Y1AUq6PSHLz74wtYO1LH4PXys1ws3n+pLP4Mo6g=="],
 

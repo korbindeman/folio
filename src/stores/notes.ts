@@ -3,6 +3,7 @@ import { create } from "zustand";
 import {
 	createNote,
 	deleteNote,
+	archiveNote,
 	initializeNoteDir,
 	loadNotes,
 	readNote,
@@ -24,6 +25,7 @@ interface NoteStore {
 	updateNoteContent: (noteId: string, content: JSONContent) => Promise<void>;
 	updateNoteData: (noteId: string, updates: Partial<Note>) => Promise<void>;
 	removeNote: (noteId: string) => Promise<void>;
+	archiveNote: (noteId: string) => Promise<void>;
 	refreshNote: (noteId: string) => Promise<void>;
 
 	// Selectors
@@ -50,7 +52,9 @@ export const useNoteStore = create<NoteStore>()((set, get) => ({
 			notes.forEach((note) => notesMap.set(note.id, note));
 			set({ notes: notesMap });
 		} catch (err) {
-			set({ error: `Failed to initialize store: ${(err as Error).message}` });
+			console.error("Store initialization error:", err);
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			set({ error: `Failed to initialize store: ${errorMessage}` });
 		} finally {
 			set({ loading: false });
 		}
@@ -160,6 +164,22 @@ export const useNoteStore = create<NoteStore>()((set, get) => ({
 			});
 		} catch (err) {
 			set({ error: `Failed to delete note: ${(err as Error).message}` });
+		} finally {
+			set({ loading: false });
+		}
+	},
+
+	archiveNote: async (noteId: string) => {
+		set({ loading: true, error: null });
+		try {
+			await archiveNote(noteId);
+			set((state) => {
+				const newNotes = new Map(state.notes);
+				newNotes.delete(noteId);
+				return { notes: newNotes };
+			});
+		} catch (err) {
+			set({ error: `Failed to archive note: ${(err as Error).message}` });
 		} finally {
 			set({ loading: false });
 		}

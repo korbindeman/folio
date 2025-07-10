@@ -29,7 +29,7 @@ function AppContent() {
 
 function App() {
 	return (
-		<ActiveNoteProvider initialNoteId="85abd57e-ca04-4b98-85c5-9252bb2ae741">
+		<ActiveNoteProvider initialNoteId="fd9bc5fa-dc0d-46e3-afd1-abe176b2c96f">
 			<AppContent />
 		</ActiveNoteProvider>
 	);

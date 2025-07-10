@@ -13,6 +13,7 @@ import type { Note } from "../types/notes";
 
 const baseDir = BaseDirectory.Document;
 const noteDir = "folio";
+const archiveDir = "folio/archive";
 
 export async function initializeNoteDir() {
 	const noteDirExists = await exists(noteDir, {
@@ -24,6 +25,16 @@ export async function initializeNoteDir() {
 			baseDir,
 		});
 	}
+
+	const archiveDirExists = await exists(archiveDir, {
+		baseDir,
+	});
+
+	if (!archiveDirExists) {
+		await mkdir(archiveDir, {
+			baseDir,
+		});
+	}
 }
 
 // TODO: these notes should not all be loaded from the start, only the root and pinned notes
@@ -32,19 +43,30 @@ export async function loadNotes() {
 		baseDir,
 	});
 
+	const noteFiles = files.filter(
+		(file) => 
+			file.name !== ".DS_Store" && 
+			file.name.endsWith(".json") && 
+			file.isFile
+	);
+
 	const notes = await Promise.all(
-		files
-			.filter((file) => file.name !== ".DS_Store")
-			.map(async (file) => {
+		noteFiles.map(async (file) => {
+			try {
 				const notePath = await path.join(noteDir, file.name);
 				const note = await readTextFile(notePath, {
 					baseDir,
 				});
 				return JSON.parse(note) as Note;
-			}),
+			} catch (err) {
+				console.error(`Failed to load note ${file.name}:`, err);
+				return null;
+			}
+		}),
 	);
 
-	return notes;
+	// Filter out any null values from failed loads
+	return notes.filter((note): note is Note => note !== null);
 }
 
 export async function createNote(parentId: string | null) {
@@ -94,6 +116,28 @@ export async function updateNote(noteId: string, note: Note) {
 export async function deleteNote(noteId: string) {
 	const notePath = await path.join(noteDir, `${noteId}.json`);
 
+	await remove(notePath, {
+		baseDir,
+	});
+
+	return { id: noteId };
+}
+
+export async function archiveNote(noteId: string) {
+	const notePath = await path.join(noteDir, `${noteId}.json`);
+	const archivePath = await path.join(archiveDir, `${noteId}.json`);
+
+	// Read the note
+	const note = await readTextFile(notePath, {
+		baseDir,
+	});
+
+	// Write to archive directory
+	await writeTextFile(archivePath, note, {
+		baseDir,
+	});
+
+	// Remove from main directory
 	await remove(notePath, {
 		baseDir,
 	});
