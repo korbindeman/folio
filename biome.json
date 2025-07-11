@@ -16,9 +16,6 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"nursery": {
-				"useSortedClasses": "on"
-			},
 			"correctness": {
 				"useExhaustiveDependencies": "off"
 			}

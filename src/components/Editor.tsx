@@ -1,9 +1,20 @@
+import BulletList from "@tiptap/extension-bullet-list";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import Document from "@tiptap/extension-document";
+import History from "@tiptap/extension-history";
+import ListItem from "@tiptap/extension-list-item";
+import OrderedList from "@tiptap/extension-ordered-list";
+import Paragraph from "@tiptap/extension-paragraph";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
+import Text from "@tiptap/extension-text";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { all, createLowlight } from "lowlight";
 import { useCallback, useEffect, useRef } from "react";
 import { useNoteStore } from "../stores/notes";
+
+const lowlight = createLowlight(all);
 
 interface EditorProps {
 	noteId: string | null;
@@ -14,7 +25,7 @@ interface EditorProps {
 const Editor = ({
 	noteId,
 	autoSave = true,
-	autoSaveDelay = 1000,
+	autoSaveDelay = 300,
 }: EditorProps) => {
 	const { getNote, updateNoteContent, loading, error } = useNoteStore();
 	const note = noteId ? getNote(noteId) : null;
@@ -46,7 +57,13 @@ const Editor = ({
 
 	const editor = useEditor({
 		extensions: [
-			StarterKit,
+			Document,
+			Paragraph,
+			Text,
+			History,
+			BulletList,
+			OrderedList,
+			ListItem,
 			TaskList.configure({}),
 			TaskItem.configure({
 				nested: true,
@@ -54,11 +71,14 @@ const Editor = ({
 					class: "flex items-start gap-1",
 				},
 			}),
+			CodeBlockLowlight.configure({
+				lowlight,
+			}),
 		],
 		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
 		editorProps: {
 			attributes: {
-				class: "focus:outline-none h-screen prose prose-sm",
+				class: "focus:outline-none pb-2",
 			},
 		},
 		onUpdate: ({ editor }) => {
@@ -83,6 +103,9 @@ const Editor = ({
 		) {
 			editor.commands.setContent(newContent, false);
 			lastSavedContentRef.current = newContentString;
+
+			window.scrollTo(0, 0);
+			editor.commands.blur();
 		}
 	}, [note, editor]);
 
@@ -133,10 +156,8 @@ const Editor = ({
 	}
 
 	return (
-		<div className="flex flex-col h-screen">
-			<div className="flex-1 overflow-auto">
-				<EditorContent editor={editor} />
-			</div>
+		<div className="">
+			<EditorContent editor={editor} />
 		</div>
 	);
 };

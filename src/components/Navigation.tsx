@@ -325,7 +325,7 @@ function Navigation() {
 	}
 
 	return (
-		<nav className="px-2 pb-0.5">
+		<nav className="px-2 pb-0.5 bg-background w-screen z-20">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center font-mono text-sm tracking-tight">
 					{/* Root dropdown */}

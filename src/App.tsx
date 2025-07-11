@@ -17,13 +17,13 @@ function AppContent() {
 	}, [initializeStore]);
 
 	return (
-		<main className="h-screen flex flex-col">
+		<div className="h-screen flex flex-col overflow-hidden">
 			<Navigation />
 
-			<div className="px-4 py-1 flex-1">
+			<main className="px-4 py-1 flex flex-col overflow-auto overscroll-auto">
 				<Editor noteId={activeNoteId} />
-			</div>
-		</main>
+			</main>
+		</div>
 	);
 }
 

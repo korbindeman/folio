@@ -13,6 +13,7 @@
 		font-family: var(--font-serif);
 		background-color: var(--color-background);
 		color: var(--color-text);
+		overscroll-behavior: none;
 	}
 
 	* {
