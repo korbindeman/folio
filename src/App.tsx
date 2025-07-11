@@ -1,6 +1,6 @@
 import "./App.css";
 import { useEffect } from "react";
-import Editor from "./components/Editor";
+import EditorManager from "./components/EditorManager";
 import Navigation from "./components/Navigation";
 import {
 	ActiveNoteProvider,
@@ -9,7 +9,6 @@ import {
 import { useNoteStore } from "./stores/notes";
 
 function AppContent() {
-	const { activeNoteId } = useActiveNote();
 	const { initializeStore } = useNoteStore();
 
 	useEffect(() => {
@@ -21,7 +20,7 @@ function AppContent() {
 			<Navigation />
 
 			<main className="px-4 py-1 flex flex-col overflow-auto overscroll-auto">
-				<Editor noteId={activeNoteId} />
+				<EditorManager />
 			</main>
 		</div>
 	);

@@ -25,12 +25,13 @@ interface EditorProps {
 const Editor = ({
 	noteId,
 	autoSave = true,
-	autoSaveDelay = 300,
+	autoSaveDelay = 1000,
 }: EditorProps) => {
 	const { getNote, updateNoteContent, loading, error } = useNoteStore();
 	const note = noteId ? getNote(noteId) : null;
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 	const lastSavedContentRef = useRef<string>("");
+	const isSavingRef = useRef<boolean>(false);
 
 	const debouncedSave = useCallback(
 		(content: JSONContent) => {
@@ -43,12 +44,16 @@ const Editor = ({
 				clearTimeout(saveTimeoutRef.current);
 			}
 
+			isSavingRef.current = true;
+
 			saveTimeoutRef.current = setTimeout(async () => {
 				try {
 					await updateNoteContent(noteId, content);
 					lastSavedContentRef.current = contentString;
 				} catch (err) {
 					console.error("Failed to save note:", err);
+				} finally {
+					isSavingRef.current = false;
 				}
 			}, autoSaveDelay);
 		},
@@ -86,28 +91,34 @@ const Editor = ({
 			debouncedSave(json);
 		},
 		editable: !loading,
-	});
+	}); // Removed noteId dependency - each Editor instance is tied to one note
 
-	// Update editor content when note changes (external updates)
+	// Update editor content when note changes (external updates only)
 	useEffect(() => {
 		if (!editor || !note) return;
 
 		const newContent = note.content;
-		const currentContent = editor.getJSON();
 		const newContentString = JSON.stringify(newContent);
-		const currentContentString = JSON.stringify(currentContent);
 
-		if (
-			newContentString !== currentContentString &&
-			newContentString !== lastSavedContentRef.current
-		) {
+		// Only update if content is different and we're not currently saving and editor doesn't have focus
+		const shouldUpdateForExternalChange =
+			!isSavingRef.current &&
+			!editor.isFocused &&
+			newContentString !== JSON.stringify(editor.getJSON()) &&
+			newContentString !== lastSavedContentRef.current;
+
+		if (shouldUpdateForExternalChange) {
 			editor.commands.setContent(newContent, false);
 			lastSavedContentRef.current = newContentString;
-
-			window.scrollTo(0, 0);
-			editor.commands.blur();
 		}
 	}, [note, editor]);
+
+	// Set initial content ref when editor is created
+	useEffect(() => {
+		if (editor && note) {
+			lastSavedContentRef.current = JSON.stringify(note.content);
+		}
+	}, [editor, noteId]);
 
 	// Cleanup timeout on unmount
 	useEffect(() => {
@@ -115,8 +126,14 @@ const Editor = ({
 			if (saveTimeoutRef.current) {
 				clearTimeout(saveTimeoutRef.current);
 			}
+			isSavingRef.current = false;
 		};
 	}, []);
+
+	// Reset saving state when switching notes
+	useEffect(() => {
+		isSavingRef.current = false;
+	}, [noteId]);
 
 	// Force save before unmount
 	useEffect(() => {

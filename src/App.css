@@ -11,7 +11,7 @@
 @layer base {
 	:root {
 		font-family: var(--font-serif);
-		background-color: var(--color-background);
+		background-color: var(--color-background); /* this doesn't really matter, background is set from rust/cocoa */
 		color: var(--color-text);
 		overscroll-behavior: none;
 	}
