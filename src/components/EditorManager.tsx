@@ -102,7 +102,7 @@ const EditorManager = () => {
 						noteId === activeNoteId ? "h-full flex flex-col grow" : "hidden"
 					}
 				>
-					<Editor noteId={noteId} />
+					<Editor noteId={noteId} isActive={noteId === activeNoteId} />
 				</div>
 			))}
 		</div>

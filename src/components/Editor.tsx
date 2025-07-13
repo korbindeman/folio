@@ -34,6 +34,107 @@ const Editor = ({
 	const lastSavedContentRef = useRef<string>("");
 	const isSavingRef = useRef<boolean>(false);
 	const prevActiveRef = useRef<boolean>(false);
+	const isMouseDownRef = useRef<boolean>(false);
+
+	const editor = useEditor({
+		extensions: [
+			Document,
+			Paragraph,
+			Text,
+			History,
+			BulletList,
+			OrderedList,
+			ListItem,
+			TaskList.configure({}),
+			TaskItem.configure({
+				nested: true,
+				HTMLAttributes: {
+					class: "flex items-start gap-1",
+				},
+			}),
+			CodeBlockLowlight.configure({
+				lowlight,
+			}),
+		],
+		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
+		editorProps: {
+			attributes: {
+				class: "focus:outline-none h-full",
+			},
+		},
+		onUpdate: ({ editor }) => {
+			const json = editor.getJSON();
+			debouncedSave(json);
+		},
+		editable: !loading,
+	}); // Removed noteId dependency - each Editor instance is tied to one note
+
+	// Update editor content when note changes (external updates only)
+	useEffect(() => {
+		if (!editor || !note) return;
+
+		const newContent = note.content;
+		const newContentString = JSON.stringify(newContent);
+
+		// Only update if content is different and we're not currently saving and editor doesn't have focus
+		const shouldUpdateForExternalChange =
+			!isSavingRef.current &&
+			!editor.isFocused &&
+			newContentString !== JSON.stringify(editor.getJSON()) &&
+			newContentString !== lastSavedContentRef.current;
+
+		if (shouldUpdateForExternalChange) {
+			editor.commands.setContent(newContent, false);
+			lastSavedContentRef.current = newContentString;
+		}
+	}, [note, editor]);
+
+	const handleButtonMouseDown = useCallback(
+		(e: React.MouseEvent) => {
+			if (!editor) return;
+
+			isMouseDownRef.current = true;
+			editor.commands.focus("end");
+
+			// Enable text selection from this point
+			const handleMouseMove = (event: MouseEvent) => {
+				if (!isMouseDownRef.current || !editor) return;
+
+				// Find the editor DOM element
+				const editorElement = editor.view.dom;
+				const editorRect = editorElement.getBoundingClientRect();
+
+				// If mouse moves into editor area, start selection
+				if (event.clientY < editorRect.bottom) {
+					const pos = editor.view.posAtCoords({
+						left: event.clientX,
+						top: event.clientY,
+					});
+
+					if (pos) {
+						// Create selection from end of document to cursor position
+						const docSize = editor.state.doc.content.size;
+						editor.commands.setTextSelection({
+							from: Math.min(docSize, pos.pos),
+							to: docSize,
+						});
+					}
+				}
+			};
+
+			const handleMouseUp = () => {
+				isMouseDownRef.current = false;
+				document.removeEventListener("mousemove", handleMouseMove);
+				document.removeEventListener("mouseup", handleMouseUp);
+			};
+
+			document.addEventListener("mousemove", handleMouseMove);
+			document.addEventListener("mouseup", handleMouseUp);
+
+			e.preventDefault();
+		},
+		[editor],
+	);
 
 	const debouncedSave = useCallback(
 		(content: JSONContent) => {
@@ -61,39 +162,6 @@ const Editor = ({
 		},
 		[noteId, updateNoteContent, autoSave, autoSaveDelay],
 	);
-
-	const editor = useEditor({
-		extensions: [
-			Document,
-			Paragraph,
-			Text,
-			History,
-			BulletList,
-			OrderedList,
-			ListItem,
-			TaskList.configure({}),
-			TaskItem.configure({
-				nested: true,
-				HTMLAttributes: {
-					class: "flex items-start gap-1",
-				},
-			}),
-			CodeBlockLowlight.configure({
-				lowlight,
-			}),
-		],
-		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
-		editorProps: {
-			attributes: {
-				class: "focus:outline-none",
-			},
-		},
-		onUpdate: ({ editor }) => {
-			const json = editor.getJSON();
-			debouncedSave(json);
-		},
-		editable: !loading,
-	}); // Removed noteId dependency - each Editor instance is tied to one note
 
 	// Update editor content when note changes (external updates only)
 	useEffect(() => {
@@ -137,14 +205,17 @@ const Editor = ({
 		isSavingRef.current = false;
 	}, [noteId]);
 
-	// Handle when editor becomes active - scroll to top and blur
 	useEffect(() => {
 		if (isActive && !prevActiveRef.current && editor) {
-			window.scrollTo(0, 0);
+			// Scroll to top
+			editor.commands.scrollIntoView();
+			editor.commands.setTextSelection(0);
+			// Blur the editor
 			editor.commands.blur();
 		}
+
 		prevActiveRef.current = isActive;
-	}, [isActive, editor]);
+	}, [isActive, editor, noteId]);
 
 	// Force save before unmount
 	useEffect(() => {
@@ -189,11 +260,10 @@ const Editor = ({
 				<EditorContent editor={editor} />
 			</div>
 			<button
-				type="button"
 				className="cursor-text h-full w-full grow flex-1"
-				onClick={() => {
-					editor?.commands.focus("end");
-				}}
+				type="button"
+				onMouseDown={handleButtonMouseDown}
+				style={{ userSelect: "text" }}
 			/>
 		</div>
 	);
