@@ -94,13 +94,13 @@ const EditorManager = () => {
 	}
 
 	return (
-		<div className="">
+		<div className="h-full flex flex-col">
 			{Array.from(loadedEditors.keys()).map((noteId) => (
 				<div
 					key={noteId}
-					style={{
-						display: noteId === activeNoteId ? "block" : "none",
-					}}
+					className={
+						noteId === activeNoteId ? "h-full flex flex-col grow" : "hidden"
+					}
 				>
 					<Editor noteId={noteId} />
 				</div>

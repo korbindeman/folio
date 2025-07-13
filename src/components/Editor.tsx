@@ -9,7 +9,6 @@ import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import Text from "@tiptap/extension-text";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { all, createLowlight } from "lowlight";
 import { useCallback, useEffect, useRef } from "react";
 import { useNoteStore } from "../stores/notes";
@@ -83,7 +82,7 @@ const Editor = ({
 		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
 		editorProps: {
 			attributes: {
-				class: "focus:outline-none pb-2",
+				class: "focus:outline-none",
 			},
 		},
 		onUpdate: ({ editor }) => {
@@ -173,8 +172,17 @@ const Editor = ({
 	}
 
 	return (
-		<div className="">
-			<EditorContent editor={editor} />
+		<div className="w-full h-full flex-1 flex flex-col grow">
+			<div className="px-5 py-2">
+				<EditorContent editor={editor} />
+			</div>
+			<button
+				type="button"
+				className="cursor-text h-full w-full grow flex-1"
+				onClick={() => {
+					editor?.commands.focus("end");
+				}}
+			/>
 		</div>
 	);
 };

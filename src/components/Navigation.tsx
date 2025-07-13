@@ -237,7 +237,7 @@ function Navigation() {
 		setOpenDropdownIndex(openDropdownIndex === -1 ? null : -1);
 	};
 
-	const handleCreateChild = async (parentId: string) => {
+	const handleCreateChild = async (parentId: string | null) => {
 		const newNoteId = await createNewNote(parentId);
 		if (newNoteId) {
 			navigateToNote(newNoteId);
@@ -325,7 +325,7 @@ function Navigation() {
 	}
 
 	return (
-		<nav className="px-2 pb-0.5 bg-background w-screen z-20">
+		<nav className="px-2 pb-0.5 bg-background w-screen z-20 select-none">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center font-mono text-sm tracking-tight">
 					{/* Root dropdown */}
@@ -346,7 +346,7 @@ function Navigation() {
 								}}
 								onClose={() => handleDropdownToggle(-2)}
 								onCreateNew={() => {
-									handleCreateChild("");
+									handleCreateChild(null);
 									handleDropdownToggle(-2);
 								}}
 								onArchive={handleArchive}

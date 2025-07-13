@@ -19,7 +19,7 @@ function AppContent() {
 		<div className="h-screen flex flex-col overflow-hidden">
 			<Navigation />
 
-			<main className="px-4 py-1 flex flex-col overflow-auto overscroll-auto">
+			<main className="overflow-auto grow">
 				<EditorManager />
 			</main>
 		</div>
