@@ -44,10 +44,8 @@ export async function loadNotes() {
 	});
 
 	const noteFiles = files.filter(
-		(file) => 
-			file.name !== ".DS_Store" && 
-			file.name.endsWith(".json") && 
-			file.isFile
+		(file) =>
+			file.name !== ".DS_Store" && file.name.endsWith(".json") && file.isFile,
 	);
 
 	const notes = await Promise.all(

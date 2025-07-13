@@ -1,9 +1,9 @@
 import type { JSONContent } from "@tiptap/react";
 import { create } from "zustand";
 import {
+	archiveNote,
 	createNote,
 	deleteNote,
-	archiveNote,
 	initializeNoteDir,
 	loadNotes,
 	readNote,

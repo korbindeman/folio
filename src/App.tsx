@@ -2,10 +2,7 @@ import "./App.css";
 import { useEffect } from "react";
 import EditorManager from "./components/EditorManager";
 import Navigation from "./components/Navigation";
-import {
-	ActiveNoteProvider,
-	useActiveNote,
-} from "./contexts/ActiveNoteContext";
+import { ActiveNoteProvider } from "./contexts/ActiveNoteContext";
 import { useNoteStore } from "./stores/notes";
 
 function AppContent() {
