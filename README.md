@@ -9,6 +9,15 @@ To run or build the app, you need to have Rust installed. Follow the instruction
 
 Run `npm run tauri dev` (or your runtime's equivalent) to start the app in development mode.
 
+Using the editor itself is relatively straightforward. You use the breadcrumb menu to navigate the hierarchy of notes. The editor itself is a [TipTap](https://tiptap.dev/) headless editor.
+
+## Planned
+- Switch to pure markdown
+- Move notes API to rust
+- Search and indexing
+- Locked notes
+- Scripts
+
 ## Platform support
 ✅ MacOS\
 ⚠️ Windows (Works but not optimized, priority is MacOS for now)\
