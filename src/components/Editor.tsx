@@ -19,18 +19,21 @@ interface EditorProps {
 	noteId: string | null;
 	autoSave?: boolean;
 	autoSaveDelay?: number;
+	isActive?: boolean;
 }
 
 const Editor = ({
 	noteId,
 	autoSave = true,
 	autoSaveDelay = 1000,
+	isActive = false,
 }: EditorProps) => {
 	const { getNote, updateNoteContent, loading, error } = useNoteStore();
 	const note = noteId ? getNote(noteId) : null;
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 	const lastSavedContentRef = useRef<string>("");
 	const isSavingRef = useRef<boolean>(false);
+	const prevActiveRef = useRef<boolean>(false);
 
 	const debouncedSave = useCallback(
 		(content: JSONContent) => {
@@ -134,6 +137,15 @@ const Editor = ({
 		isSavingRef.current = false;
 	}, [noteId]);
 
+	// Handle when editor becomes active - scroll to top and blur
+	useEffect(() => {
+		if (isActive && !prevActiveRef.current && editor) {
+			window.scrollTo(0, 0);
+			editor.commands.blur();
+		}
+		prevActiveRef.current = isActive;
+	}, [isActive, editor]);
+
 	// Force save before unmount
 	useEffect(() => {
 		return () => {
@@ -172,8 +184,8 @@ const Editor = ({
 	}
 
 	return (
-		<div className="w-full h-full flex-1 flex flex-col grow">
-			<div className="px-5 py-2">
+		<div className="w-full h-full flex-1 flex flex-col grow py-2">
+			<div className="px-5">
 				<EditorContent editor={editor} />
 			</div>
 			<button

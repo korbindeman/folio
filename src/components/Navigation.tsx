@@ -35,22 +35,15 @@ function Dropdown({
 	return (
 		<div
 			ref={dropdownRef}
-			className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-48 max-h-64 overflow-y-auto"
+			className="absolute top-full left-0 mt-1 bg-paper border rounded-md shadow-lg z-10 min-w-48 max-h-64 overflow-y-auto"
 		>
-			<button
-				type="button"
-				className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 transition-colors border-b border-gray-100 font-medium text-blue-600"
-				onClick={onCreateNew}
-			>
-				+ New note
-			</button>
 			{notes.length === 0 ? (
 				<div className="px-3 py-2 text-sm text-gray-500">No other notes</div>
 			) : (
 				notes.map((note) => (
 					<div
 						key={note.id}
-						className="flex items-center group hover:bg-gray-100 transition-colors"
+						className="flex items-center group hover:bg-background transition-colors"
 					>
 						<button
 							type="button"
@@ -73,6 +66,13 @@ function Dropdown({
 					</div>
 				))
 			)}
+			<button
+				type="button"
+				className="w-full text-left px-3 py-2 text-sm hover:bg-background transition-colors border-t font-medium"
+				onClick={onCreateNew}
+			>
+				+ New note
+			</button>
 		</div>
 	);
 }
@@ -156,7 +156,7 @@ function Breadcrumb({
 						type="button"
 						className={`rounded px-1 py-0.5 transition hover:bg-[#00000009] ${
 							active && "font-bold"
-						} ${active ? "cursor-text" : "cursor-pointer"}`}
+						} ${active ? "cursor-text" : ""}`}
 						onClick={
 							note && !active
 								? handleClick
@@ -177,7 +177,7 @@ function Breadcrumb({
 				{!isEditing && (
 					<button
 						type="button"
-						className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+						className="rounded px-1 py-0.5 transition hover:bg-[#00000009]"
 						onClick={handleArrowClick}
 						disabled={dropdownNotes.length === 0 && (!note || !active)}
 					>
@@ -332,7 +332,7 @@ function Navigation() {
 					<div className="relative">
 						<button
 							type="button"
-							className="cursor-pointer rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+							className="rounded px-1 py-0.5 transition hover:bg-[#00000009]"
 							onClick={handleRootDropdownToggle}
 						>
 							&gt;
