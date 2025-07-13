@@ -34,7 +34,6 @@ const Editor = ({
 	const lastSavedContentRef = useRef<string>("");
 	const isSavingRef = useRef<boolean>(false);
 	const prevActiveRef = useRef<boolean>(false);
-	const isMouseDownRef = useRef<boolean>(false);
 
 	const editor = useEditor({
 		extensions: [
@@ -59,7 +58,7 @@ const Editor = ({
 		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
 		editorProps: {
 			attributes: {
-				class: "focus:outline-none h-full",
+				class: "focus:outline-none min-h-full cursor-text",
 			},
 		},
 		onUpdate: ({ editor }) => {
@@ -67,7 +66,7 @@ const Editor = ({
 			debouncedSave(json);
 		},
 		editable: !loading,
-	}); // Removed noteId dependency - each Editor instance is tied to one note
+	});
 
 	// Update editor content when note changes (external updates only)
 	useEffect(() => {
@@ -88,53 +87,6 @@ const Editor = ({
 			lastSavedContentRef.current = newContentString;
 		}
 	}, [note, editor]);
-
-	const handleButtonMouseDown = useCallback(
-		(e: React.MouseEvent) => {
-			if (!editor) return;
-
-			isMouseDownRef.current = true;
-			editor.commands.focus("end");
-
-			// Enable text selection from this point
-			const handleMouseMove = (event: MouseEvent) => {
-				if (!isMouseDownRef.current || !editor) return;
-
-				// Find the editor DOM element
-				const editorElement = editor.view.dom;
-				const editorRect = editorElement.getBoundingClientRect();
-
-				// If mouse moves into editor area, start selection
-				if (event.clientY < editorRect.bottom) {
-					const pos = editor.view.posAtCoords({
-						left: event.clientX,
-						top: event.clientY,
-					});
-
-					if (pos) {
-						// Create selection from end of document to cursor position
-						const docSize = editor.state.doc.content.size;
-						editor.commands.setTextSelection({
-							from: Math.min(docSize, pos.pos),
-							to: docSize,
-						});
-					}
-				}
-			};
-
-			const handleMouseUp = () => {
-				isMouseDownRef.current = false;
-				document.removeEventListener("mousemove", handleMouseMove);
-				document.removeEventListener("mouseup", handleMouseUp);
-			};
-
-			document.addEventListener("mousemove", handleMouseMove);
-			document.addEventListener("mouseup", handleMouseUp);
-
-			e.preventDefault();
-		},
-		[editor],
-	);
 
 	const debouncedSave = useCallback(
 		(content: JSONContent) => {
@@ -256,15 +208,9 @@ const Editor = ({
 
 	return (
 		<div className="w-full h-full flex-1 flex flex-col grow py-2">
-			<div className="px-5">
-				<EditorContent editor={editor} />
+			<div className="px-5 h-full flex flex-col">
+				<EditorContent editor={editor} className="h-full" />
 			</div>
-			<button
-				className="cursor-text h-full w-full grow flex-1"
-				type="button"
-				onMouseDown={handleButtonMouseDown}
-				style={{ userSelect: "text" }}
-			/>
 		</div>
 	);
 };
