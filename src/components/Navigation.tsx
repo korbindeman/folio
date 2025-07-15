@@ -35,10 +35,10 @@ function Dropdown({
 	return (
 		<div
 			ref={dropdownRef}
-			className="absolute top-full left-0 mt-1 bg-paper border rounded-md shadow-lg z-10 min-w-48 max-h-64 overflow-y-auto"
+			className="absolute top-full left-0 mt-1 bg-[#fbf9f420] backdrop-blur-lg border rounded-md shadow-lg z-10 min-w-48 max-h-64 overflow-y-auto"
 		>
 			{notes.length === 0 ? (
-				<div className="px-3 py-2 text-sm text-gray-500">No other notes</div>
+				<div className="px-3 py-2 text-sm">No other notes</div>
 			) : (
 				notes.map((note) => (
 					<div
@@ -54,7 +54,7 @@ function Dropdown({
 						</button>
 						<button
 							type="button"
-							className="px-2 py-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+							className="px-2 py-2 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
 							onClick={(e) => {
 								e.stopPropagation();
 								onArchive(note.id);

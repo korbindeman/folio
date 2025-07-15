@@ -58,7 +58,7 @@ const Editor = ({
 		content: note?.content || { type: "doc", content: [{ type: "paragraph" }] },
 		editorProps: {
 			attributes: {
-				class: "focus:outline-none min-h-full cursor-text",
+				class: "focus:outline-none min-h-full cursor-text pb-6",
 			},
 		},
 		onUpdate: ({ editor }) => {
