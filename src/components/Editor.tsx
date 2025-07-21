@@ -1,6 +1,7 @@
 import BulletList from "@tiptap/extension-bullet-list";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Document from "@tiptap/extension-document";
+import Heading from "@tiptap/extension-heading";
 import History from "@tiptap/extension-history";
 import ListItem from "@tiptap/extension-list-item";
 import OrderedList from "@tiptap/extension-ordered-list";
@@ -50,6 +51,12 @@ const Editor = ({
 				HTMLAttributes: {
 					class: "flex items-start gap-1",
 				},
+			}),
+			Heading.configure({
+				HTMLAttributes: {
+					class: "font-bold",
+				},
+				levels: [1], // for now only level 1
 			}),
 			CodeBlockLowlight.configure({
 				lowlight,

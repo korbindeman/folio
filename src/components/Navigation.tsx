@@ -9,28 +9,31 @@ function Dropdown({
 	onClose,
 	onCreateNew,
 	onArchive,
+	toggleButtonRef,
 }: {
 	notes: Note[];
 	onSelect: (note: Note) => void;
 	onClose: () => void;
 	onCreateNew: () => void;
 	onArchive: (noteId: string) => void;
+	toggleButtonRef?: React.RefObject<HTMLButtonElement>;
 }) {
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
-			if (
-				dropdownRef.current &&
-				!dropdownRef.current.contains(event.target as Node)
-			) {
+			const target = event.target as Node;
+			const isClickInDropdown = dropdownRef.current?.contains(target);
+			const isClickOnToggleButton = toggleButtonRef?.current?.contains(target);
+
+			if (!isClickInDropdown && !isClickOnToggleButton) {
 				onClose();
 			}
 		};
 
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [onClose]);
+	}, [onClose, toggleButtonRef]);
 
 	return (
 		<div
@@ -113,6 +116,7 @@ function Breadcrumb({
 }) {
 	const { navigateToNote } = useActiveNote();
 	const buttonRef = useRef<HTMLButtonElement>(null);
+	const arrowButtonRef = useRef<HTMLButtonElement>(null);
 
 	const handleClick = () => {
 		if (note) {
@@ -176,8 +180,9 @@ function Breadcrumb({
 				)}
 				{!isEditing && (
 					<button
+						ref={arrowButtonRef}
 						type="button"
-						className="rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+						className="rounded px-1.5 py-0.5 transition hover:bg-[#00000009]"
 						onClick={handleArrowClick}
 						disabled={dropdownNotes.length === 0 && (!note || !active)}
 					>
@@ -200,6 +205,50 @@ function Breadcrumb({
 						onDropdownToggle(-2); // Close dropdown
 					}}
 					onArchive={onArchive}
+					toggleButtonRef={arrowButtonRef}
+				/>
+			)}
+		</div>
+	);
+}
+
+function RootDropdown({
+	isOpen,
+	onToggle,
+	notes,
+	onSelect,
+	onClose,
+	onCreateNew,
+	onArchive,
+}: {
+	isOpen: boolean;
+	onToggle: () => void;
+	notes: Note[];
+	onSelect: (note: Note) => void;
+	onClose: () => void;
+	onCreateNew: () => void;
+	onArchive: (noteId: string) => void;
+}) {
+	const buttonRef = useRef<HTMLButtonElement>(null);
+
+	return (
+		<div className="relative">
+			<button
+				ref={buttonRef}
+				type="button"
+				className="rounded px-1 py-0.5 transition hover:bg-[#00000009]"
+				onClick={onToggle}
+			>
+				&gt;
+			</button>
+			{isOpen && (
+				<Dropdown
+					notes={notes}
+					onSelect={onSelect}
+					onClose={onClose}
+					onCreateNew={onCreateNew}
+					onArchive={onArchive}
+					toggleButtonRef={buttonRef}
 				/>
 			)}
 		</div>
@@ -229,12 +278,13 @@ function Navigation() {
 			// Special case for closing dropdown
 			setOpenDropdownIndex(null);
 		} else {
-			setOpenDropdownIndex(openDropdownIndex === index ? null : index);
+			// Toggle dropdown: close if already open, open if closed
+			setOpenDropdownIndex((prev) => (prev === index ? null : index));
 		}
 	};
 
 	const handleRootDropdownToggle = () => {
-		setOpenDropdownIndex(openDropdownIndex === -1 ? null : -1);
+		setOpenDropdownIndex((prev) => (prev === -1 ? null : -1));
 	};
 
 	const handleCreateChild = async (parentId: string | null) => {
@@ -312,47 +362,26 @@ function Navigation() {
 		}
 	};
 
-	if (!activeNoteId) {
-		return (
-			<nav className="px-2 pb-0.5">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center font-mono text-sm tracking-tight text-gray-500">
-						No note selected
-					</div>
-				</div>
-			</nav>
-		);
-	}
-
 	return (
 		<nav className="px-2 pb-0.5 bg-background w-screen z-20 select-none">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center font-mono text-sm tracking-tight">
 					{/* Root dropdown */}
-					<div className="relative">
-						<button
-							type="button"
-							className="rounded px-1 py-0.5 transition hover:bg-[#00000009]"
-							onClick={handleRootDropdownToggle}
-						>
-							&gt;
-						</button>
-						{openDropdownIndex === -1 && (
-							<Dropdown
-								notes={getRootNotes()}
-								onSelect={(selectedNote) => {
-									navigateToNote(selectedNote.id);
-									handleDropdownToggle(-2);
-								}}
-								onClose={() => handleDropdownToggle(-2)}
-								onCreateNew={() => {
-									handleCreateChild(null);
-									handleDropdownToggle(-2);
-								}}
-								onArchive={handleArchive}
-							/>
-						)}
-					</div>
+					<RootDropdown
+						isOpen={openDropdownIndex === -1}
+						onToggle={handleRootDropdownToggle}
+						notes={getRootNotes()}
+						onSelect={(selectedNote) => {
+							navigateToNote(selectedNote.id);
+							handleDropdownToggle(-2);
+						}}
+						onClose={() => handleDropdownToggle(-2)}
+						onCreateNew={() => {
+							handleCreateChild(null);
+							handleDropdownToggle(-2);
+						}}
+						onArchive={handleArchive}
+					/>
 
 					{path.map((note, index) => (
 						<Breadcrumb
