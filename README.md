@@ -2,6 +2,8 @@
 
 A simple hierarchical note-taking app.
 
+![A screenshot of Folio](screenshot.png)
+
 🚧 Work in progress
 
 ## Usage
@@ -12,11 +14,10 @@ Run `npm run tauri dev` (or your runtime's equivalent) to start the app in devel
 Using the editor itself is relatively straightforward. You use the breadcrumb menu to navigate the hierarchy of notes. The editor itself is a [TipTap](https://tiptap.dev/) headless editor.
 
 ## Planned
-- Switch to pure markdown
+- Use pure markdown instead of json
 - Move notes API to rust
 - Search and indexing
 - Locked notes
-- Scripts
 
 ## Platform support
 ✅ MacOS\
