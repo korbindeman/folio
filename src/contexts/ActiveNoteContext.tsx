@@ -6,6 +6,7 @@ import {
 	useState,
 } from "react";
 import { useNoteHierarchy } from "../hooks/useNotes";
+import { setLastOpenedNote } from "../lib/settings";
 import type { Note } from "../types/notes";
 
 interface ActiveNoteContextType {
@@ -34,7 +35,7 @@ export function ActiveNoteProvider({
 	children,
 	initialNoteId = null,
 }: ActiveNoteProviderProps) {
-	const [activeNoteId, setActiveNoteId] = useState<string | null>(
+	const [activeNoteId, setActiveNoteIdState] = useState<string | null>(
 		initialNoteId,
 	);
 	const [navigationHistory, setNavigationHistory] = useState<string[]>(
@@ -45,6 +46,13 @@ export function ActiveNoteProvider({
 	);
 	const { notes } = useNoteHierarchy();
 
+	const setActiveNoteId = useCallback((noteId: string | null) => {
+		setActiveNoteIdState(noteId);
+		if (noteId) {
+			setLastOpenedNote(noteId);
+		}
+	}, []);
+
 	const navigateToNote = useCallback(
 		(noteId: string) => {
 			setActiveNoteId(noteId);
@@ -54,6 +62,8 @@ export function ActiveNoteProvider({
 				return newHistory;
 			});
 			setCurrentHistoryIndex((prev) => prev + 1);
+			// Persist the last opened note
+			setLastOpenedNote(noteId);
 		},
 		[currentHistoryIndex],
 	);
@@ -73,7 +83,12 @@ export function ActiveNoteProvider({
 			setCurrentHistoryIndex(newIndex);
 			setActiveNoteId(navigationHistory[newIndex]);
 		}
-	}, [canNavigateBack, currentHistoryIndex, navigationHistory]);
+	}, [
+		canNavigateBack,
+		currentHistoryIndex,
+		navigationHistory,
+		setActiveNoteId,
+	]);
 
 	const navigateForward = useCallback(() => {
 		if (canNavigateForward) {
@@ -81,7 +96,12 @@ export function ActiveNoteProvider({
 			setCurrentHistoryIndex(newIndex);
 			setActiveNoteId(navigationHistory[newIndex]);
 		}
-	}, [canNavigateForward, currentHistoryIndex, navigationHistory]);
+	}, [
+		canNavigateForward,
+		currentHistoryIndex,
+		navigationHistory,
+		setActiveNoteId,
+	]);
 
 	const getCurrentNote = useCallback((): Note | null => {
 		if (!activeNoteId) return null;
