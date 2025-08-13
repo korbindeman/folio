@@ -3,6 +3,7 @@ import { useActiveNote } from "../contexts/ActiveNoteContext";
 import { useLock } from "../contexts/LockContext";
 import { useNoteStore } from "../stores/notes";
 import type { Note } from "../types/notes";
+import PasswordPrompt from "./PasswordPrompt";
 
 function Dropdown({
 	notes,
@@ -273,6 +274,13 @@ function Navigation() {
         );
         const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
         const [editingTitle, setEditingTitle] = useState<string>("");
+        const [passwordPrompt, setPasswordPrompt] = useState<
+                | null
+                | {
+                          mode: "lock" | "unlock";
+                          action: (password: string) => Promise<void>;
+                  }
+        >(null);
 
         const path = activeNoteId ? getNotePath(activeNoteId) : [];
         const note = activeNoteId ? getNote(activeNoteId) : null;
@@ -281,24 +289,25 @@ function Navigation() {
         const handleLockClick = async () => {
                 if (!note) return;
                 if (!note.lockId) {
-                        const pwd1 = window.prompt("Set password");
-                        if (!pwd1) return;
-                        const pwd2 = window.prompt("Confirm password");
-                        if (pwd1 !== pwd2) {
-                                window.alert("Passwords do not match");
-                                return;
-                        }
-                        await lockNote(note.id, pwd1);
-                        await unlock(note.id, pwd1);
+                        setPasswordPrompt({
+                                mode: "lock",
+                                action: async (pwd) => {
+                                        await lockNote(note.id, pwd);
+                                        await unlock(note.id, pwd);
+                                },
+                        });
                 } else if (unlockedLockId === note.lockId) {
                         await lock();
                 } else {
-                        const pwd = window.prompt("Enter password");
-                        if (!pwd) return;
-                        const ok = await unlock(note.lockId, pwd);
-                        if (!ok) {
-                                window.alert("Incorrect password");
-                        }
+                        setPasswordPrompt({
+                                mode: "unlock",
+                                action: async (pwd) => {
+                                        const ok = await unlock(note.lockId, pwd);
+                                        if (!ok) {
+                                                window.alert("Incorrect password");
+                                        }
+                                },
+                        });
                 }
         };
 
@@ -391,9 +400,10 @@ function Navigation() {
 		}
 	};
 
-	return (
-		<nav className="px-2 pb-0.5 bg-background w-screen z-20 select-none">
-                        <div className="flex items-center justify-between">
+        return (
+                <>
+                        <nav className="px-2 pb-0.5 bg-background w-screen z-20 select-none">
+                                <div className="flex items-center justify-between">
                                 <div className="flex items-center font-mono text-sm tracking-tight">
                                         {/* Root dropdown */}
                                         <RootDropdown
@@ -442,8 +452,19 @@ function Navigation() {
                                 >
                                         {lockIcon}
                                 </button>
-                        </div>
-                </nav>
+                                </div>
+                        </nav>
+                        {passwordPrompt && (
+                                <PasswordPrompt
+                                        mode={passwordPrompt.mode}
+                                        onSubmit={async (pwd) => {
+                                                await passwordPrompt.action(pwd);
+                                                setPasswordPrompt(null);
+                                        }}
+                                        onCancel={() => setPasswordPrompt(null)}
+                                />
+                        )}
+                </>
         );
 }
 
