@@ -185,13 +185,21 @@ const Editor = ({
 		);
 	}
 
-	if (error) {
-		return (
-			<div className="flex h-screen items-center justify-center">
-				<div className="text-red-500">Error: {error}</div>
-			</div>
-		);
-	}
+        if (error) {
+                return (
+                        <div className="flex h-screen items-center justify-center">
+                                <div className="text-red-500">Error: {error}</div>
+                        </div>
+                );
+        }
+
+        if (note && note.encryptedContent && !note.content) {
+                return (
+                        <div className="flex h-screen items-center justify-center">
+                                <div className="text-gray-500">Locked note</div>
+                        </div>
+                );
+        }
 
 	return (
 		<div className="w-full h-full flex-1 flex flex-col grow py-2">

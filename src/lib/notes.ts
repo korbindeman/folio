@@ -71,14 +71,18 @@ export async function createNote(parentId: string | null) {
 	const noteId = uuidv4();
 	const notePath = await path.join(noteDir, `${noteId}.json`);
 
-	const note: Note = {
-		id: noteId,
-		title: "untitled",
-		content: [],
-		createdAt: new Date(),
-		updatedAt: new Date(),
-		parentId,
-	};
+        const note: Note = {
+                id: noteId,
+                title: "untitled",
+                content: [],
+                encryptedContent: null,
+                iv: null,
+                lockId: null,
+                lockHash: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                parentId,
+        };
 
 	try {
 		await writeTextFile(notePath, JSON.stringify(note), {
