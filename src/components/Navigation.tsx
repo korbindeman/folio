@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useActiveNote } from "../contexts/ActiveNoteContext";
+import { useLock } from "../contexts/LockContext";
 import { useNoteStore } from "../stores/notes";
 import type { Note } from "../types/notes";
+import PasswordPrompt from "./PasswordPrompt";
 
 function Dropdown({
 	notes,
@@ -256,22 +258,58 @@ function RootDropdown({
 }
 
 function Navigation() {
-	const { activeNoteId, navigateToNote } = useActiveNote();
-	const {
-		getNotePath,
-		getRootNotes,
-		createNewNote,
-		updateNoteTitle,
-		getChildNotes,
-		archiveNote,
-	} = useNoteStore();
-	const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
-		null,
-	);
-	const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-	const [editingTitle, setEditingTitle] = useState<string>("");
+        const { activeNoteId, navigateToNote } = useActiveNote();
+        const {
+                getNote,
+                getNotePath,
+                getRootNotes,
+                createNewNote,
+                updateNoteTitle,
+                getChildNotes,
+                archiveNote,
+        } = useNoteStore();
+        const { unlockedLockId, unlock, lock, lockNote } = useLock();
+        const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+                null,
+        );
+        const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+        const [editingTitle, setEditingTitle] = useState<string>("");
+        const [passwordPrompt, setPasswordPrompt] = useState<
+                | null
+                | {
+                          mode: "lock" | "unlock";
+                          action: (password: string) => Promise<void>;
+                  }
+        >(null);
 
-	const path = activeNoteId ? getNotePath(activeNoteId) : [];
+        const path = activeNoteId ? getNotePath(activeNoteId) : [];
+        const note = activeNoteId ? getNote(activeNoteId) : null;
+        const lockIcon = note?.lockId && unlockedLockId !== note.lockId ? "🔒" : "🔓";
+
+        const handleLockClick = async () => {
+                if (!note) return;
+                if (!note.lockId) {
+                        setPasswordPrompt({
+                                mode: "lock",
+                                action: async (pwd) => {
+                                        await lockNote(note.id, pwd);
+                                        await unlock(note.id, pwd);
+                                },
+                        });
+                } else if (unlockedLockId === note.lockId) {
+                        await lock();
+                } else {
+                        setPasswordPrompt({
+                                mode: "unlock",
+                                action: async (pwd) => {
+                                        const ok = await unlock(note.lockId, pwd);
+                                        if (!ok) {
+                                                window.alert("Incorrect password");
+                                        }
+                                },
+                        });
+                }
+        };
 
 	const handleDropdownToggle = (index: number) => {
 		if (index === -2) {
@@ -362,12 +400,13 @@ function Navigation() {
 		}
 	};
 
-	return (
-		<nav className="px-2 pb-0.5 bg-background w-screen z-20 select-none">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center font-mono text-sm tracking-tight">
-					{/* Root dropdown */}
-					<RootDropdown
+        return (
+                <>
+                        <nav className="px-2 pb-0.5 bg-background w-screen z-20 select-none">
+                                <div className="flex items-center justify-between">
+                                <div className="flex items-center font-mono text-sm tracking-tight">
+                                        {/* Root dropdown */}
+                                        <RootDropdown
 						isOpen={openDropdownIndex === -1}
 						onToggle={handleRootDropdownToggle}
 						notes={getRootNotes()}
@@ -404,10 +443,29 @@ function Navigation() {
 							onTitleKeyDown={handleTitleKeyDown}
 						/>
 					))}
-				</div>
-			</div>
-		</nav>
-	);
+                                </div>
+                                <button
+                                        type="button"
+                                        className="px-2 text-lg"
+                                        onClick={handleLockClick}
+                                        title="Lock/unlock"
+                                >
+                                        {lockIcon}
+                                </button>
+                                </div>
+                        </nav>
+                        {passwordPrompt && (
+                                <PasswordPrompt
+                                        mode={passwordPrompt.mode}
+                                        onSubmit={async (pwd) => {
+                                                await passwordPrompt.action(pwd);
+                                                setPasswordPrompt(null);
+                                        }}
+                                        onCancel={() => setPasswordPrompt(null)}
+                                />
+                        )}
+                </>
+        );
 }
 
 export default Navigation;
