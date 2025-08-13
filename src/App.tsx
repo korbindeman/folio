@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import EditorManager from "./components/EditorManager";
 import Navigation from "./components/Navigation";
 import { ActiveNoteProvider } from "./contexts/ActiveNoteContext";
+import { LockProvider } from "./contexts/LockContext";
 import { getLastOpenedNote } from "./lib/settings";
 import { useNoteStore } from "./stores/notes";
 
@@ -50,11 +51,13 @@ function App() {
 		);
 	}
 
-	return (
-		<ActiveNoteProvider initialNoteId={initialNoteId}>
-			<AppContent />
-		</ActiveNoteProvider>
-	);
+        return (
+                <ActiveNoteProvider initialNoteId={initialNoteId}>
+                        <LockProvider>
+                                <AppContent />
+                        </LockProvider>
+                </ActiveNoteProvider>
+        );
 }
 
 export default App;
