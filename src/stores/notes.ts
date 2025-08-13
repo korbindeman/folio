@@ -1,7 +1,7 @@
 import type { JSONContent } from "@tiptap/react";
 import { create } from "zustand";
 import {
-	archiveNote,
+	archiveNote as archiveNoteFile,
 	createNote,
 	deleteNote,
 	initializeNoteDir,
@@ -156,10 +156,12 @@ export const useNoteStore = create<NoteStore>()((set, get) => ({
 	removeNote: async (noteId: string) => {
 		set({ loading: true, error: null });
 		try {
-			await deleteNote(noteId);
+			const descendants = get().getDescendants(noteId);
+			const idsToDelete = [noteId, ...descendants.map((d) => d.id)];
+			await Promise.all(idsToDelete.map((id) => deleteNote(id)));
 			set((state) => {
 				const newNotes = new Map(state.notes);
-				newNotes.delete(noteId);
+				idsToDelete.forEach((id) => newNotes.delete(id));
 				return { notes: newNotes };
 			});
 		} catch (err) {
@@ -172,10 +174,12 @@ export const useNoteStore = create<NoteStore>()((set, get) => ({
 	archiveNote: async (noteId: string) => {
 		set({ loading: true, error: null });
 		try {
-			await archiveNote(noteId);
+			const descendants = get().getDescendants(noteId);
+			const idsToArchive = [noteId, ...descendants.map((d) => d.id)];
+			await Promise.all(idsToArchive.map((id) => archiveNoteFile(id)));
 			set((state) => {
 				const newNotes = new Map(state.notes);
-				newNotes.delete(noteId);
+				idsToArchive.forEach((id) => newNotes.delete(id));
 				return { notes: newNotes };
 			});
 		} catch (err) {
