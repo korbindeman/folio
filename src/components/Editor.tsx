@@ -75,26 +75,6 @@ const Editor = ({
 		editable: !loading,
 	});
 
-	// Update editor content when note changes (external updates only)
-	useEffect(() => {
-		if (!editor || !note) return;
-
-		const newContent = note.content;
-		const newContentString = JSON.stringify(newContent);
-
-		// Only update if content is different and we're not currently saving and editor doesn't have focus
-		const shouldUpdateForExternalChange =
-			!isSavingRef.current &&
-			!editor.isFocused &&
-			newContentString !== JSON.stringify(editor.getJSON()) &&
-			newContentString !== lastSavedContentRef.current;
-
-		if (shouldUpdateForExternalChange) {
-			editor.commands.setContent(newContent, false);
-			lastSavedContentRef.current = newContentString;
-		}
-	}, [note, editor]);
-
 	const debouncedSave = useCallback(
 		(content: JSONContent) => {
 			if (!noteId) return;
