@@ -4,7 +4,7 @@ use gpui::{
     App, Bounds, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, FocusHandle, Focusable, GlobalElementId, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ShapedLine,
-    SharedString, Style, TextRun, UTF16Selection, Window, div, fill, hsla, point, prelude::*, px,
+    SharedString, Style, TextRun, UTF16Selection, Window, div, fill, point, prelude::*, px,
     relative, rgb, rgba, size, white,
 };
 use unicode_segmentation::*;
@@ -17,7 +17,6 @@ use crate::actions::{
 pub struct TextEditor {
     focus_handle: FocusHandle,
     content: SharedString,
-    placeholder: SharedString,
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
@@ -27,15 +26,10 @@ pub struct TextEditor {
 }
 
 impl TextEditor {
-    pub fn new(
-        focus_handle: FocusHandle,
-        content: SharedString,
-        placeholder: SharedString,
-    ) -> Self {
+    pub fn new(focus_handle: FocusHandle, content: SharedString) -> Self {
         Self {
             focus_handle,
             content,
-            placeholder,
             selected_range: 0..0,
             selection_reversed: false,
             marked_range: None,
@@ -546,11 +540,7 @@ impl Element for TextElement {
         let style = window.text_style();
         let line_height = window.line_height();
 
-        let (display_text, text_color) = if content.is_empty() {
-            (input.placeholder.clone(), hsla(0., 0., 0., 0.2))
-        } else {
-            (content.clone(), style.color)
-        };
+        let (display_text, text_color) = (content.clone(), style.color);
 
         let font_size = style.font_size.to_pixels(window.rem_size());
 

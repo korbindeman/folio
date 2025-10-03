@@ -1,19 +1,20 @@
 mod actions;
 mod app;
 mod editor;
+mod filesystem;
 
-use gpui::{
-    App, AppContext, Application, Bounds, Focusable, KeyBinding, WindowBounds, WindowOptions, px,
-    size,
-};
+use std::env;
+use std::path::PathBuf;
+
+use gpui::{App, AppContext, Application, Focusable, KeyBinding, WindowOptions};
 
 use crate::actions::*;
 use crate::app::Main;
 use crate::editor::TextEditor;
+use crate::filesystem::NoteFilesystem;
 
 fn main() {
     Application::new().run(|cx: &mut App| {
-        let bounds = Bounds::centered(None, size(px(300.0), px(300.0)), cx);
         cx.bind_keys([
             KeyBinding::new("backspace", Backspace, None),
             KeyBinding::new("delete", Delete, None),
@@ -33,16 +34,28 @@ fn main() {
             KeyBinding::new("ctrl-cmd-space", ShowCharacterPalette, None),
         ]);
 
+        // Get the user's home directory
+        let home = env::var("HOME").expect("HOME environment variable not set");
+
+        // Create path to documents/notes
+        let notes_path = PathBuf::from(home).join("Documents").join("notes");
+
+        // Initialize the filesystem - this creates the directory if it doesn't exist
+        let fs = NoteFilesystem::new(&notes_path).unwrap();
+
+        // Now you can use it
+        fs.write_note("hello", "My first note").unwrap();
+
+        let content = fs.read_note("hello").unwrap();
+
         let window = cx
             .open_window(
                 WindowOptions {
-                    window_bounds: Some(WindowBounds::Windowed(bounds)),
                     ..Default::default()
                 },
                 |_, cx| {
-                    let text_editor = cx.new(|cx| {
-                        TextEditor::new(cx.focus_handle(), "".into(), "Type here...".into())
-                    });
+                    let text_editor =
+                        cx.new(|cx| TextEditor::new(cx.focus_handle(), content.into()));
                     cx.new(|cx| Main::new(text_editor, cx))
                 },
             )
