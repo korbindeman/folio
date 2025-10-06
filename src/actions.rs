@@ -22,3 +22,7 @@ actions!(
         Quit,
     ]
 );
+
+// Event emitted when the text editor content changes
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContentChanged;

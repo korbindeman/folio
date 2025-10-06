@@ -1,7 +1,8 @@
 mod actions;
 mod app;
-mod editor;
 mod filesystem;
+mod notes;
+mod ui;
 
 use std::env;
 use std::path::PathBuf;
@@ -10,8 +11,8 @@ use gpui::{App, AppContext, Application, Focusable, KeyBinding, WindowOptions};
 
 use crate::actions::*;
 use crate::app::Main;
-use crate::editor::TextEditor;
 use crate::filesystem::NoteFilesystem;
+use crate::ui::editor::TextEditor;
 
 fn main() {
     Application::new().run(|cx: &mut App| {
@@ -41,12 +42,16 @@ fn main() {
         let notes_path = PathBuf::from(home).join("Documents").join("notes");
 
         // Initialize the filesystem - this creates the directory if it doesn't exist
-        let fs = NoteFilesystem::new(&notes_path).unwrap();
+        let fs = std::sync::Arc::new(NoteFilesystem::new(&notes_path).unwrap());
 
-        // Now you can use it
-        fs.write_note("hello", "My first note").unwrap();
+        // Default note path
+        let note_path = "hello".to_string();
 
-        let content = fs.read_note("hello").unwrap();
+        // Load or create the note
+        let content = fs.read_note(&note_path).unwrap_or_else(|_| {
+            fs.write_note(&note_path, "").unwrap();
+            String::new()
+        });
 
         let window = cx
             .open_window(
@@ -56,7 +61,7 @@ fn main() {
                 |_, cx| {
                     let text_editor =
                         cx.new(|cx| TextEditor::new(cx.focus_handle(), content.into()));
-                    cx.new(|cx| Main::new(text_editor, cx))
+                    cx.new(|cx| Main::new(text_editor, fs.clone(), note_path, cx))
                 },
             )
             .unwrap();

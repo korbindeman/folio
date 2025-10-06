@@ -9,6 +9,18 @@ pub struct NoteMetadata {
     pub mtime: SystemTime,
 }
 
+// Helper function to get parent path from a path string
+fn get_parent_path(path: &str) -> Option<String> {
+    if path.is_empty() {
+        return None;
+    }
+
+    let path = Path::new(path);
+    path.parent()
+        .filter(|p| p != &Path::new(""))
+        .map(|p| p.to_string_lossy().to_string())
+}
+
 #[derive(Debug)]
 pub struct NoteFilesystem {
     root_path: PathBuf,
@@ -59,42 +71,17 @@ impl NoteFilesystem {
         Ok(notes)
     }
 
-    pub fn get_parent_path(&self, path: &str) -> Option<String> {
-        if path.is_empty() {
-            return None;
+    pub fn get_ancestors(&self, path: &str) -> Vec<String> {
+        let mut ancestors = vec![path.to_string()];
+        let mut current = path.to_string();
+
+        while let Some(parent) = get_parent_path(&current) {
+            ancestors.push(parent.clone());
+            current = parent;
         }
 
-        let path = Path::new(path);
-        path.parent()
-            .filter(|p| p != &Path::new(""))
-            .map(|p| p.to_string_lossy().to_string())
-    }
-
-    pub fn list_children(&self, path: &str) -> io::Result<Vec<String>> {
-        let dir_path = self.root_path.join(path);
-
-        if !dir_path.exists() {
-            return Err(io::Error::new(io::ErrorKind::NotFound, "Note not found"));
-        }
-
-        let mut children = Vec::new();
-
-        for entry in fs::read_dir(dir_path)? {
-            let entry = entry?;
-            let metadata = entry.metadata()?;
-            let name = entry.file_name().to_string_lossy().to_string();
-
-            if metadata.is_dir() {
-                let child_path = if path.is_empty() {
-                    name
-                } else {
-                    format!("{}/{}", path, name)
-                };
-                children.push(child_path);
-            }
-        }
-
-        Ok(children)
+        ancestors.reverse();
+        ancestors
     }
 
     fn note_to_fs_path(&self, path: &str) -> PathBuf {
@@ -213,38 +200,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_parent_path() {
-        let temp_dir = TempDir::new().unwrap();
-        let fs = NoteFilesystem::new(temp_dir.path()).unwrap();
-
-        assert_eq!(fs.get_parent_path(""), None);
-        assert_eq!(fs.get_parent_path("inbox"), None);
-        assert_eq!(
-            fs.get_parent_path("projects/rust-app"),
-            Some("projects".to_string())
-        );
-        assert_eq!(
-            fs.get_parent_path("projects/rust-app/architecture"),
-            Some("projects/rust-app".to_string())
-        );
-    }
-
-    #[test]
-    fn test_list_children() {
-        let temp_dir = TempDir::new().unwrap();
-        let fs = NoteFilesystem::new(temp_dir.path()).unwrap();
-
-        fs.write_note("parent", "Parent content").unwrap();
-        fs.write_note("parent/child1", "Child 1").unwrap();
-        fs.write_note("parent/child2", "Child 2").unwrap();
-
-        let children = fs.list_children("parent").unwrap();
-        assert_eq!(children.len(), 2);
-        assert!(children.contains(&"parent/child1".to_string()));
-        assert!(children.contains(&"parent/child2".to_string()));
-    }
-
-    #[test]
     fn test_special_characters_in_path() {
         let temp_dir = TempDir::new().unwrap();
         let fs = NoteFilesystem::new(temp_dir.path()).unwrap();
@@ -266,9 +221,6 @@ mod tests {
         fs.write_note("a/b/c/d/e", "Deep content").unwrap();
         let content = fs.read_note("a/b/c/d/e").unwrap();
         assert_eq!(content, "Deep content");
-
-        let parent = fs.get_parent_path("a/b/c/d/e");
-        assert_eq!(parent, Some("a/b/c/d".to_string()));
     }
 
     #[test]
@@ -316,16 +268,6 @@ mod tests {
     }
 
     #[test]
-    fn test_list_children_empty() {
-        let temp_dir = TempDir::new().unwrap();
-        let fs = NoteFilesystem::new(temp_dir.path()).unwrap();
-
-        fs.write_note("parent", "Parent content").unwrap();
-        let children = fs.list_children("parent").unwrap();
-        assert_eq!(children.len(), 0);
-    }
-
-    #[test]
     fn test_root_note() {
         let temp_dir = TempDir::new().unwrap();
         let fs = NoteFilesystem::new(temp_dir.path()).unwrap();
@@ -333,5 +275,39 @@ mod tests {
         fs.write_note("", "Root content").unwrap();
         let content = fs.read_note("").unwrap();
         assert_eq!(content, "Root content");
+    }
+
+    #[test]
+    fn test_get_ancestors() {
+        let temp_dir = TempDir::new().unwrap();
+        let fs = NoteFilesystem::new(temp_dir.path()).unwrap();
+
+        // Empty path returns itself (root note)
+        assert_eq!(fs.get_ancestors(""), vec![""]);
+
+        // Root level note returns itself only
+        assert_eq!(fs.get_ancestors("inbox"), vec!["inbox"]);
+
+        // One level deep - returns root, then self
+        assert_eq!(
+            fs.get_ancestors("projects/rust-app"),
+            vec!["projects", "projects/rust-app"]
+        );
+
+        // Multiple levels deep - returns full path including self
+        assert_eq!(
+            fs.get_ancestors("projects/rust-app/architecture"),
+            vec![
+                "projects",
+                "projects/rust-app",
+                "projects/rust-app/architecture"
+            ]
+        );
+
+        // Deep nesting - returns full path including self
+        assert_eq!(
+            fs.get_ancestors("a/b/c/d/e"),
+            vec!["a", "a/b", "a/b/c", "a/b/c/d", "a/b/c/d/e"]
+        );
     }
 }

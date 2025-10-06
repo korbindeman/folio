@@ -1,0 +1,1111 @@
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use rusqlite::{Connection, OptionalExtension, Result as SqlResult, params};
+
+use crate::filesystem::NoteFilesystem;
+
+#[derive(Debug)]
+pub enum Error {
+    Io(std::io::Error),
+    Database(rusqlite::Error),
+    DatabaseCorrupted,
+    NotFound(String),
+    AlreadyExists(String),
+    ParentNotFound(String),
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::Io(err)
+    }
+}
+
+impl From<rusqlite::Error> for Error {
+    fn from(err: rusqlite::Error) -> Self {
+        Error::Database(err)
+    }
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, Clone)]
+pub struct Note {
+    pub id: i64,
+    pub path: String,
+    pub content: String,
+    pub modified: SystemTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct NoteMetadata {
+    pub id: i64,
+    pub path: String,
+    pub modified: SystemTime,
+    pub archived: bool,
+}
+
+pub struct NotesApi {
+    fs: NoteFilesystem,
+    db: Connection,
+}
+
+impl NotesApi {
+    /// Creates a new NotesApi instance.
+    ///
+    /// Initializes the filesystem and database at the specified notes_root directory.
+    /// Creates the database file if it doesn't exist, runs migrations, and verifies schema.
+    pub fn new<P: AsRef<Path>>(notes_root: P) -> Result<Self> {
+        let fs = NoteFilesystem::new(&notes_root)?;
+
+        // Create database path at notes_root/.notes.db
+        let db_path = notes_root.as_ref().join(".notes.db");
+        let db = Connection::open(db_path)?;
+
+        // Run migrations
+        run_migrations(&db)?;
+
+        // Verify schema
+        verify_schema(&db)?;
+
+        Ok(Self { fs, db })
+    }
+
+    /// Syncs the database index with the filesystem on startup.
+    ///
+    /// Scans all notes in the filesystem and ensures the database is up to date.
+    /// Use this after opening the database to handle external filesystem changes.
+    pub fn startup_sync(&mut self) -> Result<()> {
+        self.rescan()
+    }
+
+    // Core CRUD operations
+
+    /// Creates a new empty note at the specified path.
+    ///
+    /// Returns an error if the parent path doesn't exist (notes must be created top-down).
+    /// Creates an empty note in both filesystem and database, returning the created Note.
+    pub fn create_note(&mut self, path: &str) -> Result<Note> {
+        // Check if parent exists (if not root-level)
+        if let Some(parent_path) = get_parent_path(path) {
+            if !self.note_exists(&parent_path)? {
+                return Err(Error::ParentNotFound(parent_path));
+            }
+        }
+
+        // Create note in filesystem
+        self.fs.create_note(path)?;
+
+        // Index in database
+        self.sync_note(path)?;
+
+        // Return the created note
+        self.get_note(path)
+    }
+
+    /// Retrieves a note with its full content.
+    ///
+    /// Reads the content from filesystem and metadata from database.
+    /// Returns the complete Note including id, path, content, and modification time.
+    pub fn get_note(&self, path: &str) -> Result<Note> {
+        // Read content from filesystem
+        let content = self
+            .fs
+            .read_note(path)
+            .map_err(|_| Error::NotFound(path.to_string()))?;
+
+        // Get metadata from database
+        let (id, mtime) = self
+            .db
+            .query_row(
+                "SELECT id, mtime FROM notes WHERE path = ?1",
+                params![path],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .map_err(|_| Error::NotFound(path.to_string()))?;
+
+        let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+
+        Ok(Note {
+            id,
+            path: path.to_string(),
+            content,
+            modified,
+        })
+    }
+
+    /// Updates an existing note's content.
+    ///
+    /// Writes the new content to filesystem and updates the database index.
+    /// Updates modification time and content hash automatically.
+    pub fn save_note(&mut self, path: &str, content: &str) -> Result<()> {
+        // Write to filesystem
+        self.fs.write_note(path, content)?;
+
+        // Update database
+        self.sync_note(path)?;
+
+        Ok(())
+    }
+
+    /// Deletes a note and all its descendants recursively.
+    ///
+    /// Removes the note directory from filesystem and all associated entries from database.
+    /// This operation cannot be undone (unless you archive_note instead).
+    pub fn delete_note(&mut self, path: &str) -> Result<()> {
+        // Delete from filesystem (recursive)
+        self.fs
+            .delete_note(path)
+            .map_err(|_| Error::NotFound(path.to_string()))?;
+
+        // Delete from database (note and all descendants)
+        self.db.execute(
+            "DELETE FROM notes WHERE path = ?1 OR path LIKE ?2",
+            params![path, format!("{}/%", path)],
+        )?;
+
+        Ok(())
+    }
+
+    /// Renames a note and updates all descendant paths.
+    ///
+    /// Moves the note in filesystem and updates database paths for the note and all children.
+    /// Returns an error if new_path already exists or old_path doesn't exist.
+    pub fn rename_note(&mut self, old_path: &str, new_path: &str) -> Result<()> {
+        // Check if new path already exists
+        if self.note_exists(new_path)? {
+            return Err(Error::AlreadyExists(new_path.to_string()));
+        }
+
+        // Check if old path exists
+        if !self.note_exists(old_path)? {
+            return Err(Error::NotFound(old_path.to_string()));
+        }
+
+        // Read content from old path
+        let content = self.fs.read_note(old_path)?;
+
+        // Get all descendants
+        let descendants: Vec<String> = self
+            .db
+            .prepare("SELECT path FROM notes WHERE path LIKE ?1")?
+            .query_map(params![format!("{}/%", old_path)], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        // Write to new path
+        self.fs.write_note(new_path, &content)?;
+
+        // Move descendants
+        for desc_old in &descendants {
+            let desc_new = desc_old.replacen(old_path, new_path, 1);
+            let desc_content = self.fs.read_note(desc_old)?;
+            self.fs.write_note(&desc_new, &desc_content)?;
+        }
+
+        // Delete old path
+        self.fs.delete_note(old_path)?;
+
+        // Update database: update all paths
+        self.db.execute(
+            "UPDATE notes SET path = ?2, parent_path = ?3 WHERE path = ?1",
+            params![old_path, new_path, get_parent_path(new_path)],
+        )?;
+
+        // Update descendant paths
+        for desc_old in &descendants {
+            let desc_new = desc_old.replacen(old_path, new_path, 1);
+            self.db.execute(
+                "UPDATE notes SET path = ?2, parent_path = ?3 WHERE path = ?1",
+                params![desc_old, desc_new, get_parent_path(&desc_new)],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Checks if a note exists at the specified path.
+    ///
+    /// Fast database lookup to verify note existence without reading content.
+    pub fn note_exists(&self, path: &str) -> Result<bool> {
+        let count: i64 = self.db.query_row(
+            "SELECT COUNT(*) FROM notes WHERE path = ?1",
+            params![path],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
+    // Navigation methods
+
+    /// Returns all direct children of a note.
+    ///
+    /// Returns metadata only (no content) for all notes whose parent is the specified path.
+    /// Useful for displaying note hierarchies and navigation trees.
+    pub fn get_children(&self, path: &str) -> Result<Vec<NoteMetadata>> {
+        let mut stmt = self
+            .db
+            .prepare("SELECT id, path, mtime, archived FROM notes WHERE parent_path = ?1")?;
+
+        let children = stmt
+            .query_map(params![path], |row| {
+                let mtime: i64 = row.get(2)?;
+                let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                Ok(NoteMetadata {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    modified,
+                    archived: row.get::<_, i64>(3)? != 0,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(children)
+    }
+
+    /// Returns the parent note's metadata.
+    ///
+    /// Returns None for root-level notes. Returns metadata only (no content).
+    pub fn get_parent(&self, path: &str) -> Result<Option<NoteMetadata>> {
+        let parent_path = match get_parent_path(path) {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+
+        let metadata = self
+            .db
+            .query_row(
+                "SELECT id, path, mtime, archived FROM notes WHERE path = ?1",
+                params![parent_path],
+                |row| {
+                    let mtime: i64 = row.get(2)?;
+                    let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                    Ok(NoteMetadata {
+                        id: row.get(0)?,
+                        path: row.get(1)?,
+                        modified,
+                        archived: row.get::<_, i64>(3)? != 0,
+                    })
+                },
+            )
+            .optional()?;
+
+        Ok(metadata)
+    }
+
+    /// Returns all ancestor notes from root to parent.
+    ///
+    /// Returns metadata for all notes in the path hierarchy, ordered from root to immediate parent.
+    /// Useful for breadcrumb navigation. Does not include the current note itself.
+    pub fn get_ancestors(&self, path: &str) -> Result<Vec<NoteMetadata>> {
+        let mut ancestors = Vec::new();
+        let mut current = path.to_string();
+
+        while let Some(parent_path) = get_parent_path(&current) {
+            if let Some(metadata) = self.get_parent(&current)? {
+                ancestors.push(metadata);
+            }
+            current = parent_path;
+        }
+
+        ancestors.reverse();
+        Ok(ancestors)
+    }
+
+    /// Returns all top-level notes (notes without a parent).
+    ///
+    /// Returns metadata for all notes at the root of the hierarchy.
+    /// Useful for displaying the main navigation or note list.
+    pub fn get_root_notes(&self) -> Result<Vec<NoteMetadata>> {
+        let mut stmt = self
+            .db
+            .prepare("SELECT id, path, mtime, archived FROM notes WHERE parent_path IS NULL")?;
+
+        let roots = stmt
+            .query_map([], |row| {
+                let mtime: i64 = row.get(2)?;
+                let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                Ok(NoteMetadata {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    modified,
+                    archived: row.get::<_, i64>(3)? != 0,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(roots)
+    }
+
+    // Archive operations
+
+    /// Archives a note by moving it to an _archive subfolder.
+    ///
+    /// Moves the note (and all descendants) to parent/_archive/name in filesystem
+    /// and sets the archived flag in database. This is a soft delete that can be undone.
+    pub fn archive_note(&mut self, path: &str) -> Result<()> {
+        // Determine archive path
+        let archive_path = if let Some(parent) = get_parent_path(path) {
+            let name = path.split('/').last().unwrap();
+            format!("{}/_archive/{}", parent, name)
+        } else {
+            let name = path;
+            format!("_archive/{}", name)
+        };
+
+        // Get content
+        let content = self.fs.read_note(path)?;
+
+        // Get all descendants
+        let descendants: Vec<(String, String)> = self
+            .db
+            .prepare("SELECT path FROM notes WHERE path LIKE ?1")?
+            .query_map(params![format!("{}/%", path)], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<String>, _>>()?
+            .into_iter()
+            .map(|old_path| {
+                let new_path = old_path.replacen(path, &archive_path, 1);
+                (old_path, new_path)
+            })
+            .collect();
+
+        // Move descendants
+        for (desc_old, desc_new) in &descendants {
+            let desc_content = self.fs.read_note(desc_old)?;
+            self.fs.write_note(desc_new, &desc_content)?;
+        }
+
+        // Write to archive path
+        self.fs.write_note(&archive_path, &content)?;
+
+        // Delete old path
+        self.fs.delete_note(path)?;
+
+        // Update database
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        self.db.execute(
+            "UPDATE notes SET path = ?2, parent_path = ?3, archived = 1, archived_at = ?4 WHERE path = ?1",
+            params![path, archive_path, get_parent_path(&archive_path), now]
+        )?;
+
+        // Update descendants
+        for (desc_old, desc_new) in &descendants {
+            self.db.execute(
+                "UPDATE notes SET path = ?2, parent_path = ?3, archived = 1, archived_at = ?4 WHERE path = ?1",
+                params![desc_old, desc_new, get_parent_path(desc_new), now]
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Restores an archived note to its original location.
+    ///
+    /// Moves the note from _archive back to its parent directory and clears the archived flag.
+    /// The path parameter should be the current archived path (containing /_archive/).
+    pub fn unarchive_note(&mut self, path: &str) -> Result<()> {
+        // Path should be in _archive
+        if !path.contains("/_archive/") {
+            return Err(Error::NotFound(path.to_string()));
+        }
+
+        // Determine unarchive path
+        let unarchive_path = path.replace("/_archive/", "/");
+
+        // Get content
+        let content = self.fs.read_note(path)?;
+
+        // Get all descendants
+        let descendants: Vec<(String, String)> = self
+            .db
+            .prepare("SELECT path FROM notes WHERE path LIKE ?1")?
+            .query_map(params![format!("{}/%", path)], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<String>, _>>()?
+            .into_iter()
+            .map(|old_path| {
+                let new_path = old_path.replace("/_archive/", "/");
+                (old_path, new_path)
+            })
+            .collect();
+
+        // Move descendants
+        for (desc_old, desc_new) in &descendants {
+            let desc_content = self.fs.read_note(desc_old)?;
+            self.fs.write_note(desc_new, &desc_content)?;
+        }
+
+        // Write to unarchive path
+        self.fs.write_note(&unarchive_path, &content)?;
+
+        // Delete old path
+        self.fs.delete_note(path)?;
+
+        // Update database
+        self.db.execute(
+            "UPDATE notes SET path = ?2, parent_path = ?3, archived = 0, archived_at = NULL WHERE path = ?1",
+            params![path, unarchive_path, get_parent_path(&unarchive_path)]
+        )?;
+
+        // Update descendants
+        for (desc_old, desc_new) in &descendants {
+            self.db.execute(
+                "UPDATE notes SET path = ?2, parent_path = ?3, archived = 0, archived_at = NULL WHERE path = ?1",
+                params![desc_old, desc_new, get_parent_path(desc_new)]
+            )?;
+        }
+
+        Ok(())
+    }
+
+    // Search and sync operations
+
+    /// Performs full-text search across all note content.
+    ///
+    /// Uses FTS5 to search both note paths and content. Returns metadata for matching notes.
+    /// Query syntax follows FTS5 conventions (supports phrases, AND/OR, etc.).
+    pub fn search(&self, query: &str) -> Result<Vec<NoteMetadata>> {
+        let mut stmt = self.db.prepare(
+            "SELECT notes.id, notes.path, notes.mtime, notes.archived
+             FROM notes_fts
+             JOIN notes ON notes_fts.rowid = notes.id
+             WHERE notes_fts MATCH ?1",
+        )?;
+
+        let results = stmt
+            .query_map(params![query], |row| {
+                let mtime: i64 = row.get(2)?;
+                let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                Ok(NoteMetadata {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    modified,
+                    archived: row.get::<_, i64>(3)? != 0,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(results)
+    }
+
+    /// Syncs a single note from filesystem to database.
+    ///
+    /// Reads the note from filesystem and updates (or creates) its database entry.
+    /// Updates modification time, content hash, and FTS index. Used by file watchers.
+    pub fn sync_note(&mut self, path: &str) -> Result<()> {
+        // Get file metadata from filesystem
+        let fs_metadata = self
+            .fs
+            .scan_all()?
+            .into_iter()
+            .find(|m| m.path == path)
+            .ok_or_else(|| Error::NotFound(path.to_string()))?;
+
+        // Read content to compute hash
+        let content = self.fs.read_note(path)?;
+        let content_hash = compute_hash(&content);
+
+        let mtime = fs_metadata
+            .mtime
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let parent_path = get_parent_path(path);
+
+        // Check if note exists in database
+        let exists: bool = self.db.query_row(
+            "SELECT COUNT(*) FROM notes WHERE path = ?1",
+            params![path],
+            |row| Ok(row.get::<_, i64>(0)? > 0),
+        )?;
+
+        if exists {
+            // Get existing ID
+            let id: i64 = self.db.query_row(
+                "SELECT id FROM notes WHERE path = ?1",
+                params![path],
+                |row| row.get(0),
+            )?;
+
+            // Update existing note
+            self.db.execute(
+                "UPDATE notes SET mtime = ?2, content_hash = ?3, parent_path = ?4 WHERE path = ?1",
+                params![path, mtime, content_hash, parent_path],
+            )?;
+
+            // Update FTS index - FTS5 requires DELETE + INSERT
+            self.db
+                .execute("DELETE FROM notes_fts WHERE rowid = ?1", params![id])?;
+            self.db.execute(
+                "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
+                params![id, path, content],
+            )?;
+        } else {
+            // Insert new note
+            self.db.execute(
+                "INSERT INTO notes (path, parent_path, mtime, content_hash, archived, archived_at)
+                 VALUES (?1, ?2, ?3, ?4, 0, NULL)",
+                params![path, parent_path, mtime, content_hash],
+            )?;
+
+            // Insert into FTS index
+            let id = self.db.last_insert_rowid();
+            self.db.execute(
+                "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
+                params![id, path, content],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Performs a full filesystem scan and rebuilds the database index.
+    ///
+    /// Scans all notes in the filesystem, syncs them to the database, and removes
+    /// database entries for notes that no longer exist. Use after external filesystem changes.
+    pub fn rescan(&mut self) -> Result<()> {
+        // Get all notes from filesystem
+        let fs_notes = self.fs.scan_all()?;
+
+        // Get all paths from database
+        let db_paths: Vec<String> = self
+            .db
+            .prepare("SELECT path FROM notes")?
+            .query_map([], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        // Index or update all filesystem notes
+        for fs_note in &fs_notes {
+            self.sync_note(&fs_note.path)?;
+        }
+
+        // Remove notes that no longer exist in filesystem
+        let fs_paths: std::collections::HashSet<_> =
+            fs_notes.iter().map(|n| n.path.as_str()).collect();
+        for db_path in db_paths {
+            if !fs_paths.contains(db_path.as_str()) {
+                self.db
+                    .execute("DELETE FROM notes WHERE path = ?1", params![db_path])?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+// Helper functions
+fn get_parent_path(path: &str) -> Option<String> {
+    if path.is_empty() {
+        return None;
+    }
+
+    let path = std::path::Path::new(path);
+    path.parent()
+        .filter(|p| p != &std::path::Path::new(""))
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+fn compute_hash(content: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    content.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
+}
+
+fn get_schema_version(conn: &Connection) -> SqlResult<i32> {
+    conn.pragma_query_value(None, "user_version", |row| row.get(0))
+}
+
+fn run_migrations(conn: &Connection) -> Result<()> {
+    let version = get_schema_version(conn)?;
+
+    if version < 1 {
+        // Create initial schema
+        conn.execute_batch(
+            "CREATE TABLE notes (
+                id INTEGER PRIMARY KEY,
+                path TEXT UNIQUE NOT NULL,
+                parent_path TEXT,
+                mtime INTEGER NOT NULL,
+                content_hash TEXT NOT NULL,
+                archived INTEGER DEFAULT 0,
+                archived_at INTEGER
+            );
+
+            CREATE INDEX idx_parent_path ON notes(parent_path);
+            CREATE INDEX idx_archived ON notes(archived) WHERE archived = 0;
+
+            CREATE VIRTUAL TABLE notes_fts USING fts5(
+                path UNINDEXED,
+                content
+            );",
+        )?;
+        conn.pragma_update(None, "user_version", 1)?;
+    }
+
+    // Future migrations go here
+    // if version < 2 { ... }
+
+    Ok(())
+}
+
+fn verify_schema(conn: &Connection) -> Result<()> {
+    // Check that notes table exists
+    let notes_exists: bool = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'",
+        [],
+        |row| Ok(row.get::<_, i32>(0)? > 0),
+    )?;
+
+    if !notes_exists {
+        return Err(Error::DatabaseCorrupted);
+    }
+
+    // Check FTS5 table exists
+    let fts_exists: bool = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes_fts'",
+        [],
+        |row| Ok(row.get::<_, i32>(0)? > 0),
+    )?;
+
+    if !fts_exists {
+        return Err(Error::DatabaseCorrupted);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_create_new_database() {
+        let temp_dir = TempDir::new().unwrap();
+        let api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Verify database file was created
+        let db_path = temp_dir.path().join(".notes.db");
+        assert!(db_path.exists());
+
+        // Verify schema version
+        let version = get_schema_version(&api.db).unwrap();
+        assert_eq!(version, 1);
+    }
+
+    #[test]
+    fn test_open_existing_database() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create database
+        let api1 = NotesApi::new(temp_dir.path()).unwrap();
+        drop(api1);
+
+        // Open existing database
+        let api2 = NotesApi::new(temp_dir.path()).unwrap();
+        let version = get_schema_version(&api2.db).unwrap();
+        assert_eq!(version, 1);
+    }
+
+    #[test]
+    fn test_database_schema_tables_exist() {
+        let temp_dir = TempDir::new().unwrap();
+        let api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Check notes table exists
+        let notes_exists: bool = api
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'",
+                [],
+                |row| Ok(row.get::<_, i32>(0)? > 0),
+            )
+            .unwrap();
+        assert!(notes_exists);
+
+        // Check FTS table exists
+        let fts_exists: bool = api
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes_fts'",
+                [],
+                |row| Ok(row.get::<_, i32>(0)? > 0),
+            )
+            .unwrap();
+        assert!(fts_exists);
+    }
+
+    #[test]
+    fn test_database_indexes_exist() {
+        let temp_dir = TempDir::new().unwrap();
+        let api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Check parent_path index exists
+        let parent_idx_exists: bool = api
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_parent_path'",
+                [],
+                |row| Ok(row.get::<_, i32>(0)? > 0),
+            )
+            .unwrap();
+        assert!(parent_idx_exists);
+
+        // Check archived index exists
+        let archived_idx_exists: bool = api
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_archived'",
+                [],
+                |row| Ok(row.get::<_, i32>(0)? > 0),
+            )
+            .unwrap();
+        assert!(archived_idx_exists);
+    }
+
+    #[test]
+    fn test_corrupted_database() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join(".notes.db");
+
+        // Create a corrupted database (invalid data)
+        std::fs::write(&db_path, b"corrupted data").unwrap();
+
+        // Attempt to open should fail
+        let result = NotesApi::new(temp_dir.path());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_database_with_missing_tables() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join(".notes.db");
+
+        // Create database with wrong schema
+        let conn = Connection::open(&db_path).unwrap();
+        conn.execute("CREATE TABLE wrong_table (id INTEGER)", [])
+            .unwrap();
+        conn.pragma_update(None, "user_version", 1).unwrap();
+        drop(conn);
+
+        // Attempt to open should fail verification
+        let result = NotesApi::new(temp_dir.path());
+        assert!(result.is_err());
+
+        if let Err(Error::DatabaseCorrupted) = result {
+            // Expected error type
+        } else {
+            panic!("Expected DatabaseCorrupted error");
+        }
+    }
+
+    #[test]
+    fn test_create_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        let note = api.create_note("test").unwrap();
+
+        assert_eq!(note.path, "test");
+        assert_eq!(note.content, "");
+        assert!(note.id > 0);
+
+        // Verify filesystem
+        let fs_content = std::fs::read_to_string(temp_dir.path().join("test/_index.md")).unwrap();
+        assert_eq!(fs_content, "");
+
+        // Verify database
+        assert!(api.note_exists("test").unwrap());
+    }
+
+    #[test]
+    fn test_create_note_with_nonexistent_parent() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        let result = api.create_note("parent/child");
+        assert!(matches!(result, Err(Error::ParentNotFound(_))));
+    }
+
+    #[test]
+    fn test_get_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+        api.save_note("test", "Test content").unwrap();
+        let note = api.get_note("test").unwrap();
+
+        assert_eq!(note.path, "test");
+        assert_eq!(note.content, "Test content");
+    }
+
+    #[test]
+    fn test_save_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+        api.save_note("test", "Original").unwrap();
+        api.save_note("test", "Updated").unwrap();
+
+        let note = api.get_note("test").unwrap();
+        assert_eq!(note.content, "Updated");
+    }
+
+    #[test]
+    fn test_delete_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+        api.delete_note("test").unwrap();
+
+        assert!(!api.note_exists("test").unwrap());
+    }
+
+    #[test]
+    fn test_delete_note_with_children() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/child").unwrap();
+
+        api.delete_note("parent").unwrap();
+
+        assert!(!api.note_exists("parent").unwrap());
+        assert!(!api.note_exists("parent/child").unwrap());
+    }
+
+    #[test]
+    fn test_rename_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("old").unwrap();
+        api.save_note("old", "Content").unwrap();
+        api.rename_note("old", "new").unwrap();
+
+        assert!(!api.note_exists("old").unwrap());
+        assert!(api.note_exists("new").unwrap());
+
+        let note = api.get_note("new").unwrap();
+        assert_eq!(note.content, "Content");
+    }
+
+    #[test]
+    fn test_rename_note_with_descendants() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("old").unwrap();
+        api.create_note("old/child").unwrap();
+
+        api.rename_note("old", "new").unwrap();
+
+        assert!(api.note_exists("new").unwrap());
+        assert!(api.note_exists("new/child").unwrap());
+        assert!(!api.note_exists("old").unwrap());
+        assert!(!api.note_exists("old/child").unwrap());
+    }
+
+    #[test]
+    fn test_rename_to_existing_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("old").unwrap();
+        api.create_note("new").unwrap();
+
+        let result = api.rename_note("old", "new");
+        assert!(matches!(result, Err(Error::AlreadyExists(_))));
+    }
+
+    #[test]
+    fn test_get_children() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/child1").unwrap();
+        api.create_note("parent/child2").unwrap();
+
+        let children = api.get_children("parent").unwrap();
+        assert_eq!(children.len(), 2);
+
+        let paths: Vec<_> = children.iter().map(|c| c.path.as_str()).collect();
+        assert!(paths.contains(&"parent/child1"));
+        assert!(paths.contains(&"parent/child2"));
+    }
+
+    #[test]
+    fn test_get_parent() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/child").unwrap();
+
+        let parent = api.get_parent("parent/child").unwrap();
+        assert!(parent.is_some());
+        assert_eq!(parent.unwrap().path, "parent");
+
+        let no_parent = api.get_parent("parent").unwrap();
+        assert!(no_parent.is_none());
+    }
+
+    #[test]
+    fn test_get_ancestors() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("a").unwrap();
+        api.create_note("a/b").unwrap();
+        api.create_note("a/b/c").unwrap();
+
+        let ancestors = api.get_ancestors("a/b/c").unwrap();
+        assert_eq!(ancestors.len(), 2);
+        assert_eq!(ancestors[0].path, "a");
+        assert_eq!(ancestors[1].path, "a/b");
+    }
+
+    #[test]
+    fn test_get_root_notes() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("root1").unwrap();
+        api.create_note("root2").unwrap();
+        api.create_note("root1/child").unwrap();
+
+        let roots = api.get_root_notes().unwrap();
+        assert_eq!(roots.len(), 2);
+
+        let paths: Vec<_> = roots.iter().map(|r| r.path.as_str()).collect();
+        assert!(paths.contains(&"root1"));
+        assert!(paths.contains(&"root2"));
+    }
+
+    #[test]
+    fn test_archive_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/note").unwrap();
+
+        api.archive_note("parent/note").unwrap();
+
+        assert!(!api.note_exists("parent/note").unwrap());
+        assert!(api.note_exists("parent/_archive/note").unwrap());
+
+        // Check archived flag
+        let archived: i64 = api
+            .db
+            .query_row(
+                "SELECT archived FROM notes WHERE path = ?1",
+                params!["parent/_archive/note"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(archived, 1);
+    }
+
+    #[test]
+    fn test_unarchive_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/note").unwrap();
+        api.archive_note("parent/note").unwrap();
+        api.unarchive_note("parent/_archive/note").unwrap();
+
+        assert!(api.note_exists("parent/note").unwrap());
+        assert!(!api.note_exists("parent/_archive/note").unwrap());
+
+        // Check archived flag
+        let archived: i64 = api
+            .db
+            .query_row(
+                "SELECT archived FROM notes WHERE path = ?1",
+                params!["parent/note"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(archived, 0);
+    }
+
+    #[test]
+    fn test_search() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("note1").unwrap();
+        api.save_note("note1", "Rust programming").unwrap();
+        api.create_note("note2").unwrap();
+        api.save_note("note2", "Python programming").unwrap();
+        api.create_note("note3").unwrap();
+        api.save_note("note3", "Cooking recipes").unwrap();
+
+        let results = api.search("programming").unwrap();
+        assert_eq!(results.len(), 2);
+
+        let paths: Vec<_> = results.iter().map(|r| r.path.as_str()).collect();
+        assert!(paths.contains(&"note1"));
+        assert!(paths.contains(&"note2"));
+    }
+
+    #[test]
+    fn test_rescan_after_external_changes() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("note1").unwrap();
+
+        // Simulate external file creation
+        std::fs::create_dir_all(temp_dir.path().join("note2")).unwrap();
+        std::fs::write(temp_dir.path().join("note2/_index.md"), "Content 2").unwrap();
+
+        // Rescan
+        api.rescan().unwrap();
+
+        // Verify new note is indexed
+        assert!(api.note_exists("note2").unwrap());
+    }
+
+    #[test]
+    fn test_startup_sync() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("note1").unwrap();
+
+        // Manually delete from DB to simulate out-of-sync state
+        let id: i64 = api
+            .db
+            .query_row(
+                "SELECT id FROM notes WHERE path = ?1",
+                params!["note1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        api.db
+            .execute("DELETE FROM notes WHERE path = ?1", params!["note1"])
+            .unwrap();
+        api.db
+            .execute("DELETE FROM notes_fts WHERE rowid = ?1", params![id])
+            .unwrap();
+
+        // Run startup sync
+        api.startup_sync().unwrap();
+
+        // Verify note is re-indexed
+        assert!(api.note_exists("note1").unwrap());
+    }
+}

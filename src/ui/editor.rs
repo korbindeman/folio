@@ -2,16 +2,16 @@ use std::ops::Range;
 
 use gpui::{
     App, Bounds, ClipboardItem, Context, CursorStyle, ElementId, ElementInputHandler, Entity,
-    EntityInputHandler, FocusHandle, Focusable, GlobalElementId, LayoutId, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point, ShapedLine,
-    SharedString, Style, TextRun, UTF16Selection, Window, div, fill, point, prelude::*, px,
-    relative, rgb, rgba, size, white,
+    EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, LayoutId,
+    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PaintQuad, Pixels, Point,
+    ShapedLine, SharedString, Style, TextRun, UTF16Selection, Window, div, fill, point, prelude::*,
+    px, relative, rgb, rgba, size, white,
 };
 use unicode_segmentation::*;
 
 use crate::actions::{
-    Backspace, Copy, Cut, Delete, Down, End, Enter, Home, Left, Paste, Right, SelectAll,
-    SelectLeft, SelectRight, ShowCharacterPalette, Up,
+    Backspace, ContentChanged, Copy, Cut, Delete, Down, End, Enter, Home, Left, Paste, Right,
+    SelectAll, SelectLeft, SelectRight, ShowCharacterPalette, Up,
 };
 
 pub struct TextEditor {
@@ -37,6 +37,10 @@ impl TextEditor {
             last_bounds: None,
             is_selecting: false,
         }
+    }
+
+    pub fn content(&self) -> &str {
+        &self.content
     }
 
     fn left(&mut self, _: &Left, _: &mut Window, cx: &mut Context<Self>) {
@@ -375,6 +379,7 @@ impl EntityInputHandler for TextEditor {
                 .into();
         self.selected_range = range.start + new_text.len()..range.start + new_text.len();
         self.marked_range.take();
+        cx.emit(ContentChanged);
         cx.notify();
     }
 
@@ -731,3 +736,5 @@ impl Focusable for TextEditor {
         self.focus_handle.clone()
     }
 }
+
+impl EventEmitter<ContentChanged> for TextEditor {}
