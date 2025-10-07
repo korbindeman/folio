@@ -14,8 +14,10 @@
     --color-background: #f8f6f0;
     --color-paper: #fbf9f4;
     --color-text: #1a1a1a;
+    --color-text-muted: #4a4a4a;
     --color-border: #d4d0c8;
     --color-selection: #d6e7ff;
+    --color-button-bg: #f2efe6;
 }
 
 @layer base {

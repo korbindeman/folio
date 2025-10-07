@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Note } from "../types";
-import { useNotesContext } from "../context/Notes";
+import { useNotesContext } from "../context/notes";
 import { useNotes } from "../hooks/useNotes";
 
 export function NoteEditor() {
@@ -54,7 +54,7 @@ export function NoteEditor() {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-4">
+    <div className="flex-1 flex flex-col">
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
