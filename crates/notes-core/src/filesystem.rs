@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
-pub struct NoteMetadata {
+pub struct FSNoteMetadata {
     pub path: String,
     pub mtime: SystemTime,
 }
@@ -65,7 +65,7 @@ impl NoteFilesystem {
         fs::remove_dir_all(dir_path)
     }
 
-    pub fn scan_all(&self) -> io::Result<Vec<NoteMetadata>> {
+    pub fn scan_all(&self) -> io::Result<Vec<FSNoteMetadata>> {
         let mut notes = Vec::new();
         self.scan_dir(&self.root_path, "", &mut notes)?;
         Ok(notes)
@@ -92,12 +92,17 @@ impl NoteFilesystem {
         }
     }
 
-    fn scan_dir(&self, dir: &Path, prefix: &str, notes: &mut Vec<NoteMetadata>) -> io::Result<()> {
+    fn scan_dir(
+        &self,
+        dir: &Path,
+        prefix: &str,
+        notes: &mut Vec<FSNoteMetadata>,
+    ) -> io::Result<()> {
         let index_path = dir.join("_index.md");
         if index_path.exists() {
             let metadata = fs::metadata(&index_path)?;
             let mtime = metadata.modified()?;
-            notes.push(NoteMetadata {
+            notes.push(FSNoteMetadata {
                 path: prefix.to_string(),
                 mtime,
             });

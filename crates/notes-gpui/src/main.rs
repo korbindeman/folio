@@ -1,17 +1,13 @@
 mod actions;
 mod app;
-mod filesystem;
-mod notes;
+mod service;
 mod ui;
-
-use std::env;
-use std::path::PathBuf;
 
 use gpui::{App, AppContext, Application, Focusable, KeyBinding, WindowOptions};
 
 use crate::actions::*;
 use crate::app::Main;
-use crate::filesystem::NoteFilesystem;
+use crate::service::NotesService;
 use crate::ui::editor::TextEditor;
 
 fn main() {
@@ -35,23 +31,16 @@ fn main() {
             KeyBinding::new("ctrl-cmd-space", ShowCharacterPalette, None),
         ]);
 
-        // Get the user's home directory
-        let home = env::var("HOME").expect("HOME environment variable not set");
+        let notes_root = dirs::home_dir().unwrap().join(".my-notes");
 
-        // Create path to documents/notes
-        let notes_path = PathBuf::from(home).join("Documents").join("notes");
+        let service = {
+            let service =
+                NotesService::new(notes_root).expect("Failed to initialize notes service");
 
-        // Initialize the filesystem - this creates the directory if it doesn't exist
-        let fs = std::sync::Arc::new(NoteFilesystem::new(&notes_path).unwrap());
+            service
+        };
 
-        // Default note path
-        let note_path = "hello".to_string();
-
-        // Load or create the note
-        let content = fs.read_note(&note_path).unwrap_or_else(|_| {
-            fs.write_note(&note_path, "").unwrap();
-            String::new()
-        });
+        cx.set_global(service);
 
         let window = cx
             .open_window(
@@ -59,9 +48,11 @@ fn main() {
                     ..Default::default()
                 },
                 |_, cx| {
+                    let service = cx.global::<NotesService>();
+                    let note_content = service.get_note("hello").unwrap().content.clone();
                     let text_editor =
-                        cx.new(|cx| TextEditor::new(cx.focus_handle(), content.into()));
-                    cx.new(|cx| Main::new(text_editor, fs.clone(), note_path, cx))
+                        cx.new(|cx| TextEditor::new(cx.focus_handle(), note_content.into()));
+                    cx.new(|cx| Main::new(text_editor, "hello".into(), cx))
                 },
             )
             .unwrap();
