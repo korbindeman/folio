@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  ReactNode,
+} from "react";
 
 interface NavigationContextType {
   activePath: string | null;
@@ -6,9 +12,11 @@ interface NavigationContextType {
   navigateToPath: (path: string) => void;
 }
 
-const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
+const NavigationContext = createContext<NavigationContextType | undefined>(
+  undefined,
+);
 
-export function NavigationProvider({ children }: { children: ReactNode }) {
+function NavigationProvider({ children }: { children: ReactNode }) {
   const [activePath, setActivePath] = useState<string | null>(null);
 
   const navigateToPath = useCallback((path: string) => {
@@ -16,13 +24,15 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <NavigationContext.Provider value={{ activePath, setActivePath, navigateToPath }}>
+    <NavigationContext.Provider
+      value={{ activePath, setActivePath, navigateToPath }}
+    >
       {children}
     </NavigationContext.Provider>
   );
 }
 
-export function useNavigation() {
+function useNavigation() {
   const context = useContext(NavigationContext);
   if (!context) {
     throw new Error("useNavigation must be used within a NavigationProvider");

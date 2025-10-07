@@ -18,12 +18,19 @@ export function useNotes() {
     await invoke("delete_note", { path });
   };
 
-  const renameNote = async (oldPath: string, newPath: string): Promise<void> => {
+  const renameNote = async (
+    oldPath: string,
+    newPath: string,
+  ): Promise<void> => {
     await invoke("rename_note", { oldPath, newPath });
   };
 
   const getChildren = async (path: string): Promise<NoteMetadata[]> => {
     return await invoke<NoteMetadata[]>("get_children", { path });
+  };
+
+  const getAncestors = async (path: string): Promise<NoteMetadata[]> => {
+    return await invoke<NoteMetadata[]>("get_ancestors", { path });
   };
 
   const getRootNotes = async (): Promise<NoteMetadata[]> => {
@@ -49,6 +56,7 @@ export function useNotes() {
     deleteNote,
     renameNote,
     getChildren,
+    getAncestors,
     getRootNotes,
     searchNotes,
     archiveNote,

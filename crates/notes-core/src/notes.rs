@@ -308,6 +308,23 @@ impl NotesApi {
         }
 
         ancestors.reverse();
+
+        // Include the given note itself
+        let mut stmt = self.db.prepare(
+            "SELECT id, path, mtime, archived FROM notes WHERE path = ? AND archived = 0",
+        )?;
+        let note_metadata = stmt.query_row([path], |row| {
+            let mtime: i64 = row.get(2)?;
+            let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+            Ok(NoteMetadata {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                modified,
+                archived: row.get::<_, i64>(3)? != 0,
+            })
+        })?;
+        ancestors.push(note_metadata);
+
         Ok(ancestors)
     }
 
@@ -969,9 +986,10 @@ mod tests {
         api.create_note("a/b/c").unwrap();
 
         let ancestors = api.get_ancestors("a/b/c").unwrap();
-        assert_eq!(ancestors.len(), 2);
+        assert_eq!(ancestors.len(), 3);
         assert_eq!(ancestors[0].path, "a");
         assert_eq!(ancestors[1].path, "a/b");
+        assert_eq!(ancestors[2].path, "a/b/c");
     }
 
     #[test]

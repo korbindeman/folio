@@ -6,4 +6,4 @@ export {
   buildPath,
   getPathTitle,
 } from "./useNavigation.tsx";
-export { useNotes } from "./useNotes";
+export { useNoteContext as useNotes } from "./useNotes";
