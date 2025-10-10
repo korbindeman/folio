@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNotesContext } from "../context/notes";
 import { useNotes } from "../hooks/useNotes";
 import { NoteMetadata } from "../types";
-import { getPathTitle } from "../utils/paths";
+import { getParentPath, getPathTitle } from "../utils/paths";
 
 function Breadcrumb({ item: note }: { item: NoteMetadata }) {
   const { getChildren, createNote } = useNotes();
@@ -46,6 +46,38 @@ function Breadcrumb({ item: note }: { item: NoteMetadata }) {
   );
 }
 
+function Modal({
+  onSubmit,
+  showModal,
+}: {
+  onSubmit: (title: string) => void;
+  showModal: boolean;
+}) {
+  const [title, setTitle] = useState("");
+
+  if (!showModal) return null;
+  return (
+    <dialog
+      className="fixed border rounded p-4 w-[400px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-button-bg"
+      open
+    >
+      <label className="flex gap-1 items-center">
+        {/*Title:*/}
+        <form onSubmit={() => onSubmit(title)}>
+          <input
+            type="text"
+            className="grow outline-none"
+            placeholder="untitled"
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </form>
+      </label>
+    </dialog>
+  );
+}
+
 function CrumbButton({
   content,
   children,
@@ -60,7 +92,7 @@ function CrumbButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const { setActiveNotePath } = useNotesContext();
+  const { setActiveNotePath, activeNotePath } = useNotesContext();
   const { createNote, archiveNote } = useNotes();
 
   const handleClick = () => {
@@ -78,8 +110,19 @@ function CrumbButton({
     }
   };
 
+  const [showModal, setShowModal] = useState(false);
+
+  const createNewNote = (title: string) => {
+    createNote(path ? path + "/" + title : title).then((newNote) => {
+      dialogRef.current?.close();
+      setShowModal(false);
+      setActiveNotePath(newNote.path);
+    });
+  };
+
   return (
     <>
+      <Modal onSubmit={createNewNote} showModal={showModal} />
       <button
         ref={buttonRef}
         className="rounded hover:bg-black/10 px-2"
@@ -93,7 +136,7 @@ function CrumbButton({
         onClick={handleDialogClick}
       >
         {content.map((note) => (
-          <div className="relative group">
+          <div className="relative group" key={note.id}>
             <button
               key={note.id}
               onClick={() => {
@@ -108,7 +151,12 @@ function CrumbButton({
               <button
                 className="text-red-500 hover:text-red-700 p-0.5"
                 onClick={() => {
-                  archiveNote(note.path).then(() => onRefresh?.());
+                  archiveNote(note.path).then(() => {
+                    if (activeNotePath === note.path) {
+                      setActiveNotePath(getParentPath(activeNotePath));
+                    }
+                    onRefresh?.();
+                  });
                 }}
               >
                 ×
@@ -118,8 +166,7 @@ function CrumbButton({
         ))}
         <button
           onClick={() => {
-            createNote(`${path ? path + "/" : ""}untitled`);
-            setActiveNotePath(`${path ? path + "/" : ""}untitled`);
+            setShowModal(true);
             dialogRef.current?.close();
           }}
           className="px-2 w-full text-left select-none outline-none py-2 bg-button-bg"
@@ -130,6 +177,7 @@ function CrumbButton({
     </>
   );
 }
+
 const RootCrumb = () => {
   const { getRootNotes } = useNotes();
   const [rootNotes, setRootNotes] = useState<NoteMetadata[]>([]);

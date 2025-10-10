@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@font-face {
+    font-family: "MD Lórien Book";
+    src: url("./assets/fonts/MDLórienTrial-Regular.otf") format("opentype");
+    font-weight: normal;
+    font-style: normal;
+    font-feature-settings: "ss05";
+}
+
+@theme {
+    --font-serif: "MD Lórien Book", serif;
+    --font-mono: "DM Mono", monospace;
+    --color-background: #f8f6f0;
+    --color-paper: #fbf9f4;
+    --color-text: #1a1a1a;
+    --color-text-muted: #4a4a4a;
+    --color-border: #d4d0c8;
+    --color-selection: #d6e7ff;
+    --color-button-bg: #f2efe6;
+}
+
+@layer base {
+    :root {
+        font-family: var(--font-serif);
+        background-color: var(
+            --color-background
+        ); /* TODO: set backgroupnd in rust/cocoa */
+        color: var(--color-text);
+        overscroll-behavior: none;
+    }
+
+    ::selection {
+        background-color: var(--color-selection);
+        color: var(--color-text);
+    }
+
+    * {
+        border-color: var(--color-border);
+    }
+}
+
+.tiptap ul {
+    list-style-type: disc;
+    margin-left: calc(var(--spacing) * 4);
+}
+
+.tiptap ol {
+    list-style-type: decimal;
+    margin-left: calc(var(--spacing) * 4);
+}
