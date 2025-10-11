@@ -5,7 +5,7 @@ import { Editor } from "./components/Editor";
 function App() {
   return (
     <NotesProvider>
-      <div class="h-screen flex flex-col p-4">
+      <div class="h-screen flex flex-col p-4 pt-0">
         <Breadcrumbs />
         <Editor />
       </div>

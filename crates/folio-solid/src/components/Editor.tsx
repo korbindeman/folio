@@ -127,17 +127,17 @@ export function Editor() {
             value={content()}
             onInput={(e) => handleContentChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            class="flex-1 w-full font-mono text-sm resize-none outline-none p-4"
+            class="flex-1 w-full font-mono text-sm resize-none outline-none px-1"
             placeholder="Write your note here..."
             disabled={isSaving()}
           />
           <div class="px-4 pb-4">
-            <div class="text-sm text-gray-500">
+            <div class="text-sm opacity-40">
               {isSaving()
                 ? "Saving..."
                 : hasUnsavedChanges()
                   ? "Unsaved changes"
-                  : "Saved"}
+                  : ""}
             </div>
           </div>
         </Show>
