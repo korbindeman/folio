@@ -1,43 +1,113 @@
-import { createSignal, createEffect, Show } from "solid-js";
+import { createSignal, createEffect, Show, onCleanup, onMount } from "solid-js";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useNotes } from "../api";
+import { commands } from "../api/commands";
+
+const AUTOSAVE_DELAY = 1000;
 
 export function Editor() {
   const notes = useNotes();
   const [content, setContent] = createSignal("");
   const [isSaving, setIsSaving] = createSignal(false);
+  const [isLoading, setIsLoading] = createSignal(false);
 
-  // Sync content with current note
-  createEffect(() => {
-    const note = notes.currentNote();
-    if (note) {
-      setContent(note.content);
+  let debounceTimer: number | undefined;
+  let lastSavedContent = "";
+
+  createEffect(async () => {
+    const path = notes.currentPath();
+
+    if (path) {
+      setIsLoading(true);
+      try {
+        const note = await commands.getNote(path);
+        setContent(note.content);
+        lastSavedContent = note.content;
+      } catch (err) {
+        console.error("Failed to load note:", err);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       setContent("");
+      lastSavedContent = "";
     }
   });
 
-  const handleSave = async () => {
-    const path = notes.currentPath();
+  const performSave = async (path: string, contentToSave: string) => {
     if (!path) return;
-
     setIsSaving(true);
     try {
-      await notes.saveNote(path, content());
+      await commands.saveNote(path, contentToSave);
+      lastSavedContent = contentToSave;
     } catch (err) {
       console.error("Failed to save:", err);
-      alert(`Failed to save: ${err}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Auto-save on Cmd+S / Ctrl+S
+  const handleSave = async () => {
+    const path = notes.currentPath();
+    if (!path) return;
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = undefined;
+    }
+    await performSave(path, content());
+  };
+
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    const path = notes.currentPath();
+    if (path && newContent !== lastSavedContent) {
+      debounceTimer = setTimeout(() => {
+        performSave(path, newContent);
+      }, AUTOSAVE_DELAY) as unknown as number;
+    }
+  };
+
   const handleKeyDown = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
       handleSave();
     }
   };
+
+  const hasUnsavedChanges = () => content() !== lastSavedContent;
+
+  onMount(async () => {
+    const window = getCurrentWindow();
+    const unlisten = await window.onCloseRequested(async (event) => {
+      if (hasUnsavedChanges()) {
+        event.preventDefault();
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        const path = notes.currentPath();
+        if (path) {
+          await performSave(path, content());
+        }
+        await window.close();
+      }
+    });
+    return () => {
+      unlisten();
+    };
+  });
+
+  onCleanup(() => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    const path = notes.currentPath();
+    if (hasUnsavedChanges() && path) {
+      performSave(path, content());
+    }
+  });
 
   return (
     <div class="flex-1 flex flex-col">
@@ -50,25 +120,25 @@ export function Editor() {
         }
       >
         <Show
-          when={!notes.currentNote.loading}
-          fallback={<div class="text-gray-500">Loading...</div>}
+          when={!isLoading()}
+          fallback={<div class="text-gray-500 p-4">Loading...</div>}
         >
           <textarea
             value={content()}
-            onInput={(e) => setContent(e.currentTarget.value)}
+            onInput={(e) => handleContentChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
             class="flex-1 w-full font-mono text-sm resize-none outline-none p-4"
             placeholder="Write your note here..."
             disabled={isSaving()}
           />
-          <div class="flex items-center justify-between p-4 border-t">
-            <button
-              onClick={handleSave}
-              disabled={isSaving()}
-              class="px-4 py-2 bg-black text-white rounded disabled:opacity-50 hover:bg-gray-800"
-            >
-              {isSaving() ? "Saving..." : "Save"}
-            </button>
+          <div class="px-4 pb-4">
+            <div class="text-sm text-gray-500">
+              {isSaving()
+                ? "Saving..."
+                : hasUnsavedChanges()
+                  ? "Unsaved changes"
+                  : "Saved"}
+            </div>
           </div>
         </Show>
       </Show>

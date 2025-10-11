@@ -1,4 +1,4 @@
-import { createSignal, For, Show, createEffect, onMount } from "solid-js";
+import { createSignal, For, Show, createEffect } from "solid-js";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { getPathTitle } from "../utils/paths";
@@ -26,7 +26,6 @@ function Modal(props: {
             type="text"
             class="grow outline-none bg-transparent"
             placeholder="untitled"
-            autofocus
             value={title()}
             onInput={(e) => setTitle(e.currentTarget.value)}
           />
@@ -144,10 +143,12 @@ function CrumbButton(props: {
   );
 }
 
-function Breadcrumb(props: { item: NoteMetadata }) {
+function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
   const notes = useNotes();
   const [children, setChildren] = createSignal<NoteMetadata[]>([]);
   const [refreshKey, setRefreshKey] = createSignal(0);
+  const [isEditing, setIsEditing] = createSignal(false);
+  const [editTitle, setEditTitle] = createSignal("");
 
   createEffect(() => {
     refreshKey(); // Track refresh key
@@ -166,32 +167,85 @@ function Breadcrumb(props: { item: NoteMetadata }) {
     }
   };
 
+  const [inputRef, setInputRef] = createSignal<HTMLInputElement | null>(null);
+
+  const handleClick = () => {
+    if (props.isActive) {
+      // Enter edit mode
+      setEditTitle(getPathTitle(props.item.path));
+      setIsEditing(true);
+      inputRef()!.focus();
+    } else {
+      // Navigate
+      notes.setCurrentPath(props.item.path);
+    }
+  };
+
+  const handleRename = async () => {
+    const newTitle = editTitle().trim() || "untitled";
+    const currentTitle = getPathTitle(props.item.path);
+
+    if (newTitle !== currentTitle) {
+      const parentPath = props.item.path.split("/").slice(0, -1).join("/");
+      const newPath = parentPath ? `${parentPath}/${newTitle}` : newTitle;
+
+      try {
+        await commands.renameNote(props.item.path, newPath);
+        notes.setCurrentPath(newPath);
+      } catch (err) {
+        console.error("Failed to rename:", err);
+        alert(`Failed to rename: ${err}`);
+      }
+    }
+    setIsEditing(false);
+  };
+
   return (
     <>
-      <button
-        class="rounded hover:bg-black/10 px-2"
-        onClick={() => notes.setCurrentPath(props.item.path)}
-      >
-        {getPathTitle(props.item.path)}
-      </button>
       <Show
-        when={children().length > 0}
+        when={isEditing()}
         fallback={
           <button
-            class="rounded hover:bg-black/10 px-2"
-            onClick={handleCreateNote}
+            class={`rounded hover:bg-black/10 px-2 ${props.isActive ? "font-bold" : ""}`}
+            onClick={handleClick}
           >
-            +
+            {getPathTitle(props.item.path)}
           </button>
         }
       >
-        <CrumbButton
-          content={children()}
-          path={props.item.path}
-          onRefresh={() => setRefreshKey((k) => k + 1)}
+        <input
+          type="text"
+          value={editTitle()}
+          onInput={(e) => setEditTitle(e.currentTarget.value)}
+          onBlur={handleRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleRename();
+            if (e.key === "Escape") setIsEditing(false);
+          }}
+          class="px-2 outline-none bg-transparent "
+          ref={setInputRef}
+        />
+      </Show>
+      <Show when={!isEditing()}>
+        <Show
+          when={children().length > 0}
+          fallback={
+            <button
+              class="rounded hover:bg-black/10 px-2"
+              onClick={handleCreateNote}
+            >
+              +
+            </button>
+          }
         >
-          {">"}
-        </CrumbButton>
+          <CrumbButton
+            content={children()}
+            path={props.item.path}
+            onRefresh={() => setRefreshKey((k) => k + 1)}
+          >
+            {">"}
+          </CrumbButton>
+        </Show>
       </Show>
     </>
   );
@@ -233,7 +287,12 @@ export function Breadcrumbs() {
   return (
     <nav class="font-mono flex mb-2 text-sm">
       <RootCrumb />
-      <For each={items()}>{(item) => <Breadcrumb item={item} />}</For>
+      <For each={items()}>
+        {(item, index) => {
+          const isActive = () => index() === items().length - 1;
+          return <Breadcrumb item={item} isActive={isActive()} />;
+        }}
+      </For>
     </nav>
   );
 }
