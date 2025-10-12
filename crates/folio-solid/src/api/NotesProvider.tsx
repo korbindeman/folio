@@ -130,9 +130,13 @@ export function NotesProvider(props: ParentProps) {
 
   // Listen for filesystem watcher events from Tauri backend
   const setupWatcherListeners = async () => {
-    // Listen for note changes (create, update, delete) and renames/moves
+    // Listen for note changes (create, update, delete)
+    // The backend now uses content hash comparison, so this event only fires
+    // when content actually changes (not on our own saves with identical content)
     const unlistenChanged = await listen("notes:changed", () => {
-      console.log("File watcher detected changes, reloading current note...");
+      console.log(
+        "File watcher detected external changes, reloading current note...",
+      );
       // Force reload by toggling the path
       const path = currentPath();
       if (path) {
@@ -142,9 +146,10 @@ export function NotesProvider(props: ParentProps) {
       }
     });
 
+    // Listen for note renames/moves
     const unlistenRenamed = await listen("notes:renamed", () => {
       console.log(
-        "File watcher detected rename/move, reloading current note...",
+        "File watcher detected external rename/move, reloading current note...",
       );
       // Force reload by toggling the path
       const path = currentPath();

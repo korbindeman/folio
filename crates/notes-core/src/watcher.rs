@@ -1,5 +1,4 @@
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
@@ -37,22 +36,44 @@ pub enum WatcherEvent {
 /// # Example
 ///
 /// ```no_run
-/// use notes_core::{NotesApi, setup_watcher};
+/// use notes_core::{NotesApi, setup_watcher, WatcherEvent};
 /// use std::sync::{Arc, Mutex};
 ///
 /// let api = NotesApi::new("/path/to/notes").unwrap();
 /// let api = Arc::new(Mutex::new(api));
-/// let _watcher = setup_watcher(Arc::clone(&api), None);
+/// let _watcher = setup_watcher(Arc::clone(&api), None::<fn(WatcherEvent)>);
 /// // Keep _watcher alive while you want to monitor filesystem changes
 /// ```
 pub fn setup_watcher<F>(notes_api: Arc<Mutex<NotesApi>>, on_change: Option<F>) -> RecommendedWatcher
 where
     F: Fn(WatcherEvent) + Send + 'static,
 {
-    let last_rescan = Arc::new(Mutex::new(Instant::now()));
     let notes_root = {
         let api = notes_api.lock().unwrap();
         api.notes_root().to_path_buf()
+    };
+
+    let notes_root_clone = notes_root.clone();
+
+    // Helper function to convert filesystem path to note path
+    let path_to_note_path = move |fs_path: &std::path::Path| -> Option<String> {
+        // Get the path relative to notes_root
+        let relative = fs_path.strip_prefix(&notes_root_clone).ok()?;
+
+        // Convert to string
+        let path_str = relative.to_str()?;
+
+        // Remove /_index.md suffix if present
+        if path_str.ends_with("/_index.md") {
+            Some(path_str.trim_end_matches("/_index.md").to_string())
+        } else if path_str == "_index.md" {
+            Some(String::new()) // Root note
+        } else if relative.is_dir() {
+            // Directory itself - use as-is
+            Some(path_str.to_string())
+        } else {
+            None
+        }
     };
 
     let mut watcher = RecommendedWatcher::new(
@@ -89,57 +110,47 @@ where
                         false
                     });
 
+                    if !is_note_related {
+                        return;
+                    }
+
                     use notify::EventKind;
                     match event.kind {
-                        // Handle rename/move events first - they need full rescan
+                        // Handle rename/move events - need full rescan
                         EventKind::Modify(notify::event::ModifyKind::Name(_)) => {
-                            println!("Rename/move event detected - {:?}", event.paths);
-
-                            // Debounce: only rescan if at least 500ms has passed since last rescan
-                            let mut last = last_rescan.lock().unwrap();
-                            let now = Instant::now();
-                            if now.duration_since(*last) < Duration::from_millis(500) {
-                                return;
-                            }
-                            *last = now;
-
                             if let Ok(mut api) = notes_api.lock() {
                                 if let Err(e) = api.rescan() {
                                     eprintln!("Failed to rescan after rename: {:?}", e);
-                                } else {
-                                    println!(
-                                        "Notes database rescanned successfully after rename/move"
-                                    );
-                                    // Notify callback if provided
-                                    if let Some(ref callback) = on_change {
-                                        callback(WatcherEvent::NotesRenamed);
-                                    }
+                                } else if let Some(ref callback) = on_change {
+                                    callback(WatcherEvent::NotesRenamed);
                                 }
                             }
                         }
-                        // Handle other filesystem events
+                        // Handle create, modify, and delete events for specific notes
                         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
-                            if !is_note_related {
-                                return;
-                            }
-
-                            // Debounce: only rescan if at least 500ms has passed since last rescan
-                            let mut last = last_rescan.lock().unwrap();
-                            let now = Instant::now();
-                            if now.duration_since(*last) < Duration::from_millis(500) {
-                                return;
-                            }
-                            *last = now;
-
-                            println!("Filesystem change detected: {:?}", event.kind);
-                            if let Ok(mut api) = notes_api.lock() {
-                                if let Err(e) = api.rescan() {
-                                    eprintln!("Failed to rescan notes: {:?}", e);
-                                } else {
-                                    println!("Notes database rescanned successfully");
-                                    // Notify callback if provided
-                                    if let Some(ref callback) = on_change {
-                                        callback(WatcherEvent::NotesChanged);
+                            // Extract note paths from the event
+                            for path in &event.paths {
+                                // Convert filesystem path to note path
+                                if let Some(note_path) = path_to_note_path(path) {
+                                    if let Ok(mut api) = notes_api.lock() {
+                                        // Use sync_note which returns true only if content changed
+                                        match api.sync_note(&note_path) {
+                                            Ok(true) => {
+                                                // Only notify if content actually changed
+                                                if let Some(ref callback) = on_change {
+                                                    callback(WatcherEvent::NotesChanged);
+                                                }
+                                            }
+                                            Ok(false) => {
+                                                // Don't notify - content is identical
+                                            }
+                                            Err(e) => {
+                                                eprintln!(
+                                                    "Failed to sync note {}: {:?}",
+                                                    note_path, e
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -160,6 +171,5 @@ where
         .watch(&notes_root, RecursiveMode::Recursive)
         .expect("Failed to start watching notes directory");
 
-    println!("Watching notes directory: {:?}", notes_root);
     watcher
 }

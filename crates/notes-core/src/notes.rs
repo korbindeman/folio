@@ -515,7 +515,10 @@ impl NotesApi {
     ///
     /// Reads the note from filesystem and updates (or creates) its database entry.
     /// Updates modification time, content hash, and FTS index. Used by file watchers.
-    pub fn sync_note(&mut self, path: &str) -> Result<()> {
+    ///
+    /// Returns `true` if the note content actually changed (or was newly created),
+    /// `false` if the content hash was already up-to-date.
+    pub fn sync_note(&mut self, path: &str) -> Result<bool> {
         // Get file metadata from filesystem
         let fs_metadata = self
             .fs
@@ -565,6 +568,10 @@ impl NotesApi {
                     "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
                     params![id, path, content],
                 )?;
+
+                Ok(true) // Content changed
+            } else {
+                Ok(false) // Content unchanged
             }
         } else {
             // Insert new note
@@ -580,9 +587,9 @@ impl NotesApi {
                 "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
                 params![id, path, content],
             )?;
-        }
 
-        Ok(())
+            Ok(true) // New note created
+        }
     }
 
     /// Performs a full filesystem scan and rebuilds the database index.
