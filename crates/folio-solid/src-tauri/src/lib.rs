@@ -1,11 +1,11 @@
-use notes_core::{Note, NoteMetadata, NotesApi};
+use notes_core::{setup_watcher, Note, NoteMetadata, NotesApi};
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 // Application state holding the NotesApi instance
 pub struct AppState {
-    notes_api: Mutex<NotesApi>,
+    notes_api: Arc<Mutex<NotesApi>>,
 }
 
 // Serializable versions of the core types for Tauri/JSON
@@ -148,9 +148,12 @@ pub fn run() {
     let mut api = NotesApi::new(&notes_root).expect("Failed to initialize NotesApi");
     api.startup_sync().expect("Failed to sync notes database");
 
-    let state = AppState {
-        notes_api: Mutex::new(api),
-    };
+    let notes_api = Arc::new(Mutex::new(api));
+
+    // Setup filesystem watcher using notes-core
+    let _watcher = setup_watcher(Arc::clone(&notes_api));
+
+    let state = AppState { notes_api };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())

@@ -33,6 +33,10 @@ impl NoteFilesystem {
         Ok(Self { root_path })
     }
 
+    pub fn root_path(&self) -> &Path {
+        &self.root_path
+    }
+
     pub fn read_note(&self, path: &str) -> io::Result<String> {
         let fs_path = self.note_to_fs_path(path);
         fs::read_to_string(fs_path)

@@ -71,6 +71,11 @@ impl NotesApi {
         Ok(Self { fs, db })
     }
 
+    /// Returns the root path of the notes directory.
+    pub fn notes_root(&self) -> &Path {
+        self.fs.root_path()
+    }
+
     /// Syncs the database index with the filesystem on startup.
     ///
     /// Scans all notes in the filesystem and ensures the database is up to date.
