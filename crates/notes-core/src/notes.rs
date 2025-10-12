@@ -543,26 +543,29 @@ impl NotesApi {
         )?;
 
         if exists {
-            // Get existing ID
-            let id: i64 = self.db.query_row(
-                "SELECT id FROM notes WHERE path = ?1",
+            // Get existing ID and content hash
+            let (id, existing_hash): (i64, String) = self.db.query_row(
+                "SELECT id, content_hash FROM notes WHERE path = ?1",
                 params![path],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
 
-            // Update existing note
-            self.db.execute(
-                "UPDATE notes SET mtime = ?2, content_hash = ?3, parent_path = ?4 WHERE path = ?1",
-                params![path, mtime, content_hash, parent_path],
-            )?;
+            // Only update if content has changed
+            if existing_hash != content_hash {
+                // Update existing note
+                self.db.execute(
+                    "UPDATE notes SET mtime = ?2, content_hash = ?3, parent_path = ?4 WHERE path = ?1",
+                    params![path, mtime, content_hash, parent_path],
+                )?;
 
-            // Update FTS index - FTS5 requires DELETE + INSERT
-            self.db
-                .execute("DELETE FROM notes_fts WHERE rowid = ?1", params![id])?;
-            self.db.execute(
-                "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
-                params![id, path, content],
-            )?;
+                // Update FTS index - FTS5 requires DELETE + INSERT
+                self.db
+                    .execute("DELETE FROM notes_fts WHERE rowid = ?1", params![id])?;
+                self.db.execute(
+                    "INSERT INTO notes_fts (rowid, path, content) VALUES (?1, ?2, ?3)",
+                    params![id, path, content],
+                )?;
+            }
         } else {
             // Insert new note
             self.db.execute(
