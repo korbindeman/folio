@@ -5,6 +5,15 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::NotesApi;
 
+/// Event type emitted by the filesystem watcher
+#[derive(Debug, Clone)]
+pub enum WatcherEvent {
+    /// Notes were modified (created, updated, or deleted)
+    NotesChanged,
+    /// Notes were renamed or moved
+    NotesRenamed,
+}
+
 /// Sets up a filesystem watcher for the notes directory.
 ///
 /// This watcher monitors the filesystem for changes to notes and automatically
@@ -18,6 +27,7 @@ use crate::NotesApi;
 /// # Arguments
 ///
 /// * `notes_api` - Arc-wrapped NotesApi instance to sync when changes are detected
+/// * `on_change` - Optional callback function that will be called when changes are detected
 ///
 /// # Returns
 ///
@@ -32,10 +42,13 @@ use crate::NotesApi;
 ///
 /// let api = NotesApi::new("/path/to/notes").unwrap();
 /// let api = Arc::new(Mutex::new(api));
-/// let _watcher = setup_watcher(Arc::clone(&api));
+/// let _watcher = setup_watcher(Arc::clone(&api), None);
 /// // Keep _watcher alive while you want to monitor filesystem changes
 /// ```
-pub fn setup_watcher(notes_api: Arc<Mutex<NotesApi>>) -> RecommendedWatcher {
+pub fn setup_watcher<F>(notes_api: Arc<Mutex<NotesApi>>, on_change: Option<F>) -> RecommendedWatcher
+where
+    F: Fn(WatcherEvent) + Send + 'static,
+{
     let last_rescan = Arc::new(Mutex::new(Instant::now()));
     let notes_root = {
         let api = notes_api.lock().unwrap();
@@ -97,6 +110,10 @@ pub fn setup_watcher(notes_api: Arc<Mutex<NotesApi>>) -> RecommendedWatcher {
                                     println!(
                                         "Notes database rescanned successfully after rename/move"
                                     );
+                                    // Notify callback if provided
+                                    if let Some(ref callback) = on_change {
+                                        callback(WatcherEvent::NotesRenamed);
+                                    }
                                 }
                             }
                         }
@@ -120,6 +137,10 @@ pub fn setup_watcher(notes_api: Arc<Mutex<NotesApi>>) -> RecommendedWatcher {
                                     eprintln!("Failed to rescan notes: {:?}", e);
                                 } else {
                                     println!("Notes database rescanned successfully");
+                                    // Notify callback if provided
+                                    if let Some(ref callback) = on_change {
+                                        callback(WatcherEvent::NotesChanged);
+                                    }
                                 }
                             }
                         }

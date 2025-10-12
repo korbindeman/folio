@@ -5,10 +5,12 @@ import {
   createSignal,
   createResource,
   createMemo,
+  onCleanup,
   type ParentProps,
   type Resource,
   type Accessor,
 } from "solid-js";
+import { listen } from "@tauri-apps/api/event";
 import { commands } from "./commands";
 import type { Note, NoteMetadata } from "../types";
 
@@ -55,21 +57,21 @@ export function NotesProvider(props: ParentProps) {
   // Resources for data fetching
   const [currentNote, { refetch: refetchCurrent }] = createResource(
     currentPath,
-    commands.getNote
+    commands.getNote,
   );
 
   const [children, { refetch: refetchChildren }] = createResource(
     currentPath,
-    commands.getChildren
+    commands.getChildren,
   );
 
   const [ancestors, { refetch: refetchAncestors }] = createResource(
     currentPath,
-    commands.getAncestors
+    commands.getAncestors,
   );
 
   const [rootNotes, { refetch: refetchRootNotes }] = createResource(
-    commands.getRootNotes
+    commands.getRootNotes,
   );
 
   const [searchResults] = createResource(
@@ -78,7 +80,7 @@ export function NotesProvider(props: ParentProps) {
       const query = searchQuery();
       return query.trim() ? query : null;
     }),
-    (query) => commands.searchNotes(query)
+    (query) => commands.searchNotes(query),
   );
 
   // Mutation functions with automatic refetching
@@ -125,6 +127,42 @@ export function NotesProvider(props: ParentProps) {
     refetchChildren();
     refetchCurrent();
   };
+
+  // Listen for filesystem watcher events from Tauri backend
+  const setupWatcherListeners = async () => {
+    // Listen for note changes (create, update, delete) and renames/moves
+    const unlistenChanged = await listen("notes:changed", () => {
+      console.log("File watcher detected changes, reloading current note...");
+      // Force reload by toggling the path
+      const path = currentPath();
+      if (path) {
+        setCurrentPath("");
+        // Use setTimeout to ensure the effect runs twice
+        setTimeout(() => setCurrentPath(path), 0);
+      }
+    });
+
+    const unlistenRenamed = await listen("notes:renamed", () => {
+      console.log(
+        "File watcher detected rename/move, reloading current note...",
+      );
+      // Force reload by toggling the path
+      const path = currentPath();
+      if (path) {
+        setCurrentPath("");
+        setTimeout(() => setCurrentPath(path), 0);
+      }
+    });
+
+    // Cleanup listeners when component unmounts
+    onCleanup(() => {
+      unlistenChanged();
+      unlistenRenamed();
+    });
+  };
+
+  // Setup listeners on mount
+  setupWatcherListeners();
 
   const value: NotesContextValue = {
     currentNote,

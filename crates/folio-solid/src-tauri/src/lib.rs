@@ -1,7 +1,7 @@
-use notes_core::{setup_watcher, Note, NoteMetadata, NotesApi};
+use notes_core::{setup_watcher, Note, NoteMetadata, NotesApi, WatcherEvent};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Emitter, Manager, State};
 
 // Application state holding the NotesApi instance
 pub struct AppState {
@@ -150,10 +150,9 @@ pub fn run() {
 
     let notes_api = Arc::new(Mutex::new(api));
 
-    // Setup filesystem watcher using notes-core
-    let _watcher = setup_watcher(Arc::clone(&notes_api));
-
-    let state = AppState { notes_api };
+    let state = AppState {
+        notes_api: Arc::clone(&notes_api),
+    };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -172,6 +171,29 @@ pub fn run() {
             archive_note,
             unarchive_note,
         ])
+        .setup(move |app| {
+            let app_handle = app.handle().clone();
+
+            // Setup filesystem watcher with event emission
+            let _watcher = setup_watcher(
+                notes_api,
+                Some(move |event| {
+                    let event_name = match event {
+                        WatcherEvent::NotesChanged => "notes:changed",
+                        WatcherEvent::NotesRenamed => "notes:renamed",
+                    };
+
+                    // Emit event to frontend
+                    if let Err(e) = app_handle.emit(event_name, ()) {
+                        eprintln!("Failed to emit watcher event: {:?}", e);
+                    }
+                }),
+            );
+
+            // Keep watcher alive for app lifetime
+            app.manage(_watcher);
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
