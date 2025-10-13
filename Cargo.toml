@@ -2,6 +2,5 @@
 resolver = "2"
 members = [
     "crates/notes-core",
-    # "crates/notes-gpui",
     "crates/folio-solid/src-tauri",
 ]
