@@ -114,7 +114,7 @@ export function Editor() {
       <Show
         when={notes.currentPath()}
         fallback={
-          <div class="flex items-center justify-center flex-1 text-gray-500">
+          <div class="flex items-center justify-center flex-1 text-text-muted select-none">
             No note selected
           </div>
         }
@@ -127,7 +127,7 @@ export function Editor() {
             value={content()}
             onInput={(e) => handleContentChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            class="flex-1 w-full font-mono text-sm resize-none outline-none px-1"
+            class="flex-1 w-full text-sm resize-none outline-none px-1"
             placeholder="Write your note here..."
             disabled={isSaving()}
           />

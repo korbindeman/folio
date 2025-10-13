@@ -21,7 +21,7 @@
 
 @layer base {
     :root {
-        font-family: var(--font-serif);
+        font-family: var(--font-mono);
         background-color: var(--color-background);
         color: var(--color-text);
         overscroll-behavior: none;

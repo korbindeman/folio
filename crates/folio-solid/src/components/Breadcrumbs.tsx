@@ -78,7 +78,7 @@ function CrumbButton(props: {
       </button>
       <dialog
         ref={dialogRef}
-        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[100px] *:border-b *:last:border-0 text-text-muted"
+        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[160px] *:border-b *:last:border-0 text-text-muted"
         onClick={handleDialogClick}
       >
         <For each={sortedContent()}>
@@ -111,7 +111,7 @@ function CrumbButton(props: {
           }}
           class="px-2 w-full text-left select-none outline-none py-2 bg-button-bg"
         >
-          Create new note +
+          New note +
         </button>
       </dialog>
     </>
