@@ -121,7 +121,7 @@ export function Editor() {
       >
         <Show
           when={!isLoading()}
-          fallback={<div class="text-gray-500 p-4">Loading...</div>}
+          fallback={<div class="text-text-muted p-4">Loading...</div>}
         >
           <textarea
             value={content()}
