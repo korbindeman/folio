@@ -47,6 +47,11 @@ function CrumbButton(props: {
   const notes = useNotes();
   const [showModal, setShowModal] = createSignal(false);
 
+  // Sort notes by modification time (most recent first)
+  const sortedContent = () => {
+    return [...props.content].sort((a, b) => b.modified - a.modified);
+  };
+
   const handleClick = () => {
     if (dialogRef && buttonRef) {
       const rect = buttonRef.getBoundingClientRect();
@@ -106,7 +111,7 @@ function CrumbButton(props: {
         class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[100px] *:border-b *:last:border-0 text-text-muted"
         onClick={handleDialogClick}
       >
-        <For each={props.content}>
+        <For each={sortedContent()}>
           {(note) => (
             <div class="relative group">
               <button
