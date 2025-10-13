@@ -125,7 +125,7 @@ function CrumbButton(props: {
               </button>
               <div class="absolute right-2 z-50 h-full group-hover:inline-flex hidden items-center">
                 <button
-                  class="text-red hover:opacity-80 p-0.5"
+                  class="hover:text-red hover:opacity-80 p-0.5"
                   onClick={() => handleArchive(note.path)}
                 >
                   ×
