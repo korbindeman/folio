@@ -290,14 +290,34 @@ export function Breadcrumbs() {
   });
 
   return (
-    <nav class="font-mono flex mb-2 text-sm">
-      <RootCrumb />
-      <For each={items()}>
-        {(item, index) => {
-          const isActive = () => index() === items().length - 1;
-          return <Breadcrumb item={item} isActive={isActive()} />;
-        }}
-      </For>
+    <nav class="font-mono flex mb-2 text-sm items-center">
+      <div class="flex flex-1">
+        <RootCrumb />
+        <For each={items()}>
+          {(item, index) => {
+            const isActive = () => index() === items().length - 1;
+            return <Breadcrumb item={item} isActive={isActive()} />;
+          }}
+        </For>
+      </div>
+      <div class="flex gap-1 ml-4">
+        <button
+          class="rounded hover:bg-black/10 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          onClick={() => notes.goBack()}
+          disabled={!notes.canGoBack()}
+          title="Go back"
+        >
+          ←
+        </button>
+        <button
+          class="rounded hover:bg-black/10 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          onClick={() => notes.goForward()}
+          disabled={!notes.canGoForward()}
+          title="Go forward"
+        >
+          →
+        </button>
+      </div>
     </nav>
   );
 }

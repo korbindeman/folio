@@ -25,6 +25,12 @@ interface NotesContextValue {
   ancestors: Resource<NoteMetadata[]>;
   rootNotes: Resource<NoteMetadata[]>;
 
+  // History navigation
+  canGoBack: Accessor<boolean>;
+  canGoForward: Accessor<boolean>;
+  goBack: () => void;
+  goForward: () => void;
+
   // Search
   searchQuery: Accessor<string>;
   setSearchQuery: (query: string) => void;
@@ -49,7 +55,52 @@ const NotesContext = createContext<NotesContextValue>();
 
 export function NotesProvider(props: ParentProps) {
   // Current note path
-  const [currentPath, setCurrentPath] = createSignal("");
+  const [currentPath, setCurrentPathInternal] = createSignal("");
+
+  // Navigation history
+  const [history, setHistory] = createSignal<string[]>([]);
+  const [historyIndex, setHistoryIndex] = createSignal(-1);
+
+  // Wrapper for setCurrentPath that tracks history
+  const setCurrentPath = (path: string, skipHistory = false) => {
+    // Don't add to history if we're navigating via back/forward
+    if (!skipHistory) {
+      const currentIndex = historyIndex();
+      const currentHistory = history();
+
+      // If we're in the middle of history, truncate forward history
+      const newHistory = currentHistory.slice(0, currentIndex + 1);
+
+      // Add new path to history
+      newHistory.push(path);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+
+    setCurrentPathInternal(path);
+  };
+
+  // History navigation helpers
+  const canGoBack = () => historyIndex() > 0;
+  const canGoForward = () => historyIndex() < history().length - 1;
+
+  const goBack = () => {
+    if (canGoBack()) {
+      const newIndex = historyIndex() - 1;
+      setHistoryIndex(newIndex);
+      const path = history()[newIndex];
+      setCurrentPathInternal(path);
+    }
+  };
+
+  const goForward = () => {
+    if (canGoForward()) {
+      const newIndex = historyIndex() + 1;
+      setHistoryIndex(newIndex);
+      const path = history()[newIndex];
+      setCurrentPathInternal(path);
+    }
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = createSignal("");
@@ -176,6 +227,10 @@ export function NotesProvider(props: ParentProps) {
     children,
     ancestors,
     rootNotes,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     searchQuery,
     setSearchQuery,
     searchResults,
