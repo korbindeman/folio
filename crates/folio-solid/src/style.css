@@ -1,15 +1,7 @@
 @import "tailwindcss";
 
-@font-face {
-    font-family: "MD Lórien Book";
-    src: url("./assets/fonts/MDLórienTrial-Regular.otf") format("opentype");
-    font-weight: normal;
-    font-style: normal;
-    font-feature-settings: "ss05";
-}
-
 @theme {
-    --font-serif: "MD Lórien Book", serif;
+    --font-serif: "", serif;
     --font-mono: "DM Mono", monospace;
 
     /* Disable default Tailwind colors */
