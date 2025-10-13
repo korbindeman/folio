@@ -1,6 +1,9 @@
 use notes_core::{setup_watcher, Note, NoteMetadata, NotesApi, WatcherEvent};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 use tauri::{Emitter, Manager, State};
 
 // Application state holding the NotesApi instance
@@ -138,11 +141,18 @@ fn unarchive_note(path: String, state: State<AppState>) -> Result<(), String> {
     api.unarchive_note(&path).map_err(|e| format!("{:?}", e))
 }
 
+fn icloud_path() -> Option<PathBuf> {
+    let mut path = dirs::home_dir()?;
+    path.push("Library");
+    path.push("Mobile Documents");
+    path.push("com~apple~CloudDocs");
+    Some(path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize NotesApi with a notes directory
-    let notes_root = dirs::document_dir()
-        .expect("Could not find home directory")
+    let notes_root = icloud_path()
+        .unwrap_or(dirs::document_dir().expect("Could not find home directory"))
         .join("notes");
 
     let mut api = NotesApi::new(&notes_root).expect("Failed to initialize NotesApi");
