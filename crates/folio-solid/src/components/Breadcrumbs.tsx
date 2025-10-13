@@ -2,38 +2,8 @@ import { createSignal, For, Show, createEffect } from "solid-js";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { getPathTitle } from "../utils/paths";
+import { InputModal } from "./InputModal";
 import type { NoteMetadata } from "../types";
-
-function Modal(props: {
-  showModal: boolean;
-  onSubmit: (title: string) => void;
-}) {
-  const [title, setTitle] = createSignal("");
-
-  return (
-    <Show when={props.showModal}>
-      <dialog
-        open
-        class="fixed border rounded p-4 w-[400px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-button-bg"
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            props.onSubmit(title());
-          }}
-        >
-          <input
-            type="text"
-            class="grow outline-none bg-transparent"
-            placeholder="untitled"
-            value={title()}
-            onInput={(e) => setTitle(e.currentTarget.value)}
-          />
-        </form>
-      </dialog>
-    </Show>
-  );
-}
 
 function CrumbButton(props: {
   content: NoteMetadata[];
@@ -98,7 +68,7 @@ function CrumbButton(props: {
 
   return (
     <>
-      <Modal showModal={showModal()} onSubmit={createNewNote} />
+      <InputModal showModal={showModal()} onSubmit={createNewNote} />
       <button
         ref={buttonRef}
         class="rounded hover:bg-black/10 px-2"
