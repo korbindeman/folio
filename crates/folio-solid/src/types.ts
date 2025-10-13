@@ -1,16 +1,14 @@
-// TypeScript types matching the Rust notes-core API
-
 export interface Note {
   id: number;
   path: string;
   content: string;
-  modified: number; // Unix timestamp in seconds
+  modified: number;
 }
 
 export interface NoteMetadata {
   id: number;
   path: string;
-  modified: number; // Unix timestamp in seconds
+  modified: number;
   archived: boolean;
 }
 
