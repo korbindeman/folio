@@ -71,7 +71,7 @@ function CrumbButton(props: {
       <InputModal showModal={showModal()} onSubmit={createNewNote} />
       <button
         ref={buttonRef}
-        class="rounded hover:bg-black/10 px-2"
+        class="rounded hover:bg-button-hover px-2"
         onClick={handleClick}
       >
         {props.children}
@@ -181,7 +181,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
         when={isEditing()}
         fallback={
           <button
-            class={`rounded hover:bg-black/10 px-2 ${props.isActive ? "font-bold" : ""}`}
+            class={`rounded hover:bg-button-hover px-2 ${props.isActive ? "font-bold" : ""}`}
             onClick={handleClick}
           >
             {getPathTitle(props.item.path)}
@@ -206,7 +206,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
           when={children().length > 0}
           fallback={
             <button
-              class="rounded hover:bg-black/10 px-2"
+              class="rounded hover:bg-button-hover px-2"
               onClick={handleCreateNote}
             >
               +
@@ -272,7 +272,7 @@ export function Breadcrumbs() {
       </div>
       <div class="flex gap-1 ml-4">
         <button
-          class="rounded hover:bg-black/10 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          class="rounded hover:bg-button-hover px-2 disabled:opacity-30 disabled:cursor-not-allowed"
           onClick={() => notes.goBack()}
           disabled={!notes.canGoBack()}
           title="Go back"
@@ -280,7 +280,7 @@ export function Breadcrumbs() {
           ←
         </button>
         <button
-          class="rounded hover:bg-black/10 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          class="rounded hover:bg-button-hover px-2 disabled:opacity-30 disabled:cursor-not-allowed"
           onClick={() => notes.goForward()}
           disabled={!notes.canGoForward()}
           title="Go forward"

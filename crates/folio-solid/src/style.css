@@ -15,7 +15,7 @@
     --color-border: #d4d0c8;
     --color-selection: #d6e7ff;
     --color-button-bg: #f2efe6;
-    --color-button-hover: rgba(0, 0, 0, 0.1);
+    --color-button-hover: #e5e2d9;
     --color-red: #dc2626;
 }
 
@@ -37,7 +37,7 @@
             --color-border: #3a3c38;
             --color-selection: #2d4a66;
             --color-button-bg: #2e302c;
-            --color-button-hover: rgba(255, 255, 255, 0.1);
+            --color-button-hover: #252722;
             --color-red: #ef4444;
         }
     }
