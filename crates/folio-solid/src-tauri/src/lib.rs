@@ -151,9 +151,15 @@ fn icloud_path() -> Option<PathBuf> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let notes_root = icloud_path()
-        .unwrap_or(dirs::document_dir().expect("Could not find home directory"))
-        .join("notes");
+    let notes_root = if cfg!(debug_assertions) {
+        dirs::document_dir()
+            .expect("Could not find documents directory")
+            .join("notes-dev")
+    } else {
+        icloud_path()
+            .unwrap_or(dirs::document_dir().expect("Could not find home directory"))
+            .join("notes")
+    };
 
     let mut api = NotesApi::new(&notes_root).expect("Failed to initialize NotesApi");
     api.startup_sync().expect("Failed to sync notes database");
