@@ -7,7 +7,7 @@ import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { replaceAll } from "@milkdown/kit/utils";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import "./editor.css";
-import { useNoteContent } from "../api";
+import { useNoteContent, useAutoSave } from "../api";
 
 const AUTOSAVE_DELAY = 1000;
 
@@ -15,6 +15,12 @@ export function MdEditor({ path }: { path: string }) {
   const [pathSignal, setPathSignal] = createSignal(path);
 
   const content = useNoteContent(pathSignal);
+
+  const autoSave = useAutoSave({
+    getPath: pathSignal,
+    getContent: content.content,
+    delay: AUTOSAVE_DELAY,
+  });
 
   let ref: HTMLDivElement | null = null;
   let editor: Editor;
@@ -27,6 +33,7 @@ export function MdEditor({ path }: { path: string }) {
         ctx.set(rootCtx, ref);
         ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
           content.setContent(markdown);
+          autoSave.scheduleAutoSave(markdown);
         });
       })
       .use(commonmark)
@@ -46,6 +53,8 @@ export function MdEditor({ path }: { path: string }) {
 
     if (!isInitialized()) {
       editor.action(replaceAll(content.content()));
+      // Set initial content as last saved to avoid triggering autosave on load
+      autoSave.setLastSavedContent(content.content());
     }
     setIsInitialized(true);
   });
@@ -53,12 +62,11 @@ export function MdEditor({ path }: { path: string }) {
   return (
     <div class="flex-1 flex flex-col items-start">
       <div ref={ref!} class="flex-1 flex flex-col w-full pb-16" />
-      <button
-        onClick={() => commands.saveNote(path, content.content())}
-        class="border bg-button-bg rounded-lg p-1 px-2 fixed bottom-2 left-2 hover:bg-button-hover"
-      >
-        Save
-      </button>
+
+      <div class="fixed bottom-2 left-2 text-text-muted text-xs opacity-40">
+        {(autoSave.isSaving() && "Saving...") ||
+          (autoSave.hasUnsavedChanges() && "Unsaved changes")}
+      </div>
     </div>
   );
 }
