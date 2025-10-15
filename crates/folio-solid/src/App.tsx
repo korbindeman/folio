@@ -1,13 +1,15 @@
 import { NotesProvider } from "./api";
-import { Breadcrumbs } from "./components/Breadcrumbs";
+import { Navigation } from "./components/Navigation";
 import EditorManager from "./components/EditorManager";
 
 function App() {
   return (
     <NotesProvider>
       <div class="h-screen flex flex-col p-4 pt-0">
-        <Breadcrumbs />
-        <EditorManager />
+        <Navigation />
+        <div class="mt-8">
+          <EditorManager />
+        </div>
       </div>
     </NotesProvider>
   );

@@ -88,6 +88,7 @@ function CrumbButton(props: {
                 onClick={() => {
                   notes.setCurrentPath(note.path);
                   dialogRef?.close();
+                  // console.log("closed");
                 }}
                 class="hover:bg-button-bg px-2 w-full text-left select-none outline-none py-2"
               >
@@ -246,7 +247,7 @@ function RootCrumb() {
   );
 }
 
-export function Breadcrumbs() {
+export function Navigation() {
   const notes = useNotes();
   const [items, setItems] = createSignal<NoteMetadata[]>([]);
 
@@ -260,7 +261,7 @@ export function Breadcrumbs() {
   });
 
   return (
-    <nav class="font-mono flex mb-2 text-sm items-center">
+    <nav class="font-mono flex pb-2 text-sm items-center fixed top-0 left-0 px-4 h-8 w-full bg-background/90 backdrop-blur-xl">
       <div class="flex flex-1">
         <RootCrumb />
         <For each={items()}>
