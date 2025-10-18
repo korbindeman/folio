@@ -1,7 +1,11 @@
 {
   "name": "folio-solid",
   "version": "0.1.0",
-  "description": "",
+  "author": "Korbin de Man",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/korbindeman/folio"
+  },
   "type": "module",
   "scripts": {
     "start": "vite",

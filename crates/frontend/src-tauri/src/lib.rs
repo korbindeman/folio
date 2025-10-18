@@ -1,4 +1,4 @@
-use notes_core::{setup_watcher, Note, NoteMetadata, NotesApi, WatcherEvent};
+use folio_core::{Note, NoteMetadata, NotesApi, WatcherEvent, setup_watcher};
 use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,

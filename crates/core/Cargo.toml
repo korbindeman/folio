@@ -1,7 +1,10 @@
 [package]
-name = "notes-core"
+name = "folio-core"
 version = "0.1.0"
 edition = "2024"
+authors = ["Korbin de Man"]
+license = "MIT"
+repository = "https://github.com/korbindeman/folio"
 
 [dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }

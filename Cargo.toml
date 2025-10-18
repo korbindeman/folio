@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/notes-core",
-    "crates/folio-solid/src-tauri",
+    "crates/core",
+    "crates/frontend/src-tauri",
 ]

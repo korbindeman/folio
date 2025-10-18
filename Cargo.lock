@@ -983,11 +983,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
+name = "folio-core"
+version = "0.1.0"
+dependencies = [
+ "notify",
+ "rusqlite",
+ "tempfile",
+]
+
+[[package]]
 name = "folio-solid"
 version = "0.1.0"
 dependencies = [
  "dirs",
- "notes-core",
+ "folio-core",
  "serde",
  "serde_json",
  "tauri",
@@ -2219,15 +2228,6 @@ name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
-
-[[package]]
-name = "notes-core"
-version = "0.1.0"
-dependencies = [
- "notify",
- "rusqlite",
- "tempfile",
-]
 
 [[package]]
 name = "notify"
