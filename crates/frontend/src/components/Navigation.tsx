@@ -5,6 +5,18 @@ import { getPathTitle } from "../utils/paths";
 import { InputModal } from "./InputModal";
 import type { NoteMetadata } from "../types";
 
+const MAX_TITLE_LENGTH = 18;
+
+function truncateTitle(
+  title: string,
+  maxLength: number = MAX_TITLE_LENGTH,
+): string {
+  if (title.length <= maxLength) {
+    return title;
+  }
+  return title.slice(0, maxLength).trimEnd() + "…";
+}
+
 function CrumbButton(props: {
   content: NoteMetadata[];
   path: string;
@@ -78,7 +90,7 @@ function CrumbButton(props: {
       </button>
       <dialog
         ref={dialogRef}
-        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[160px] *:border-b *:last:border-0 text-text-muted"
+        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[200px] *:border-b *:last:border-0 text-text-muted"
         onClick={handleDialogClick}
       >
         <For each={sortedContent()}>
@@ -91,8 +103,9 @@ function CrumbButton(props: {
                   // console.log("closed");
                 }}
                 class="hover:bg-button-bg px-2 w-full text-left select-none outline-none py-2"
+                title={getPathTitle(note.path)}
               >
-                {getPathTitle(note.path)}
+                {truncateTitle(getPathTitle(note.path))}
               </button>
               <div class="absolute right-2 z-50 h-full group-hover:inline-flex hidden items-center">
                 <button
