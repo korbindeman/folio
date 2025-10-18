@@ -261,7 +261,7 @@ export function Navigation() {
   });
 
   return (
-    <nav class="font-mono flex pb-2 text-sm items-center fixed top-0 left-0 px-4 h-8 w-full bg-background/90 backdrop-blur-xl">
+    <nav class="font-mono flex pb-2 text-sm items-center fixed top-0 left-0 px-4 h-8 w-full bg-background select-none z-10">
       <div class="flex flex-1">
         <RootCrumb />
         <For each={items()}>

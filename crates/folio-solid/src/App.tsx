@@ -5,9 +5,9 @@ import EditorManager from "./components/EditorManager";
 function App() {
   return (
     <NotesProvider>
-      <div class="h-screen flex flex-col p-4 pt-0">
+      <div class="h-screen flex flex-col pt-0">
         <Navigation />
-        <div class="mt-8">
+        <div class="mt-8 flex flex-1">
           <EditorManager />
         </div>
       </div>

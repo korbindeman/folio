@@ -6,13 +6,20 @@
     height: 100%;
     outline: none;
 
+    padding: 1rem;
+
     padding-bottom: 2rem;
+    padding-top: 0rem;
 }
 
 .milkdown .editor {
     /*font-family: "Office Times";*/
     font-size: var(--text-sm);
     line-height: var(--text-sm--line-height);
+
+    /*& * {
+        margin-bottom: 1rem;
+    }*/
 
     & h1 {
         /*font-size: 1.2rem;*/
@@ -27,5 +34,14 @@
     & ol {
         list-style-type: decimal;
         padding-left: 2.2rem;
+    }
+
+    /*& br {
+        height: 1rem;
+    }*/
+
+    & hr {
+        margin: 0.8rem 0rem;
+        background-color: red;
     }
 }
