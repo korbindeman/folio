@@ -1,0 +1,4 @@
+# Ignore artifacts:
+src-tauri
+dist
+node_modules

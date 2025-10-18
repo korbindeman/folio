@@ -1,53 +1,53 @@
 @import "tailwindcss";
 
 @theme {
-    --font-serif: "", serif;
-    --font-mono: "DM Mono", monospace;
+  --font-serif: "", serif;
+  --font-mono: "DM Mono", monospace;
 
-    /* Disable default Tailwind colors */
-    --color-*: initial;
+  /* Disable default Tailwind colors */
+  --color-*: initial;
 
-    /* Light theme (default) */
-    --color-background: #f8f6f0;
-    --color-paper: #fbf9f4;
-    --color-text: #1a1a1a;
-    --color-text-muted: #4a4a4a;
-    --color-border: #d4d0c8;
-    --color-selection: #d6e7ff;
-    --color-button-bg: #f2efe6;
-    --color-button-hover: #e5e2d9;
-    --color-red: #dc2626;
+  /* Light theme (default) */
+  --color-background: #f8f6f0;
+  --color-paper: #fbf9f4;
+  --color-text: #1a1a1a;
+  --color-text-muted: #4a4a4a;
+  --color-border: #d4d0c8;
+  --color-selection: #d6e7ff;
+  --color-button-bg: #f2efe6;
+  --color-button-hover: #e5e2d9;
+  --color-red: #dc2626;
 }
 
 @layer base {
+  :root {
+    font-family: var(--font-mono);
+    background-color: var(--color-background);
+    color: var(--color-text);
+    overscroll-behavior: none;
+  }
+
+  /* Dark theme */
+  @media (prefers-color-scheme: dark) {
     :root {
-        font-family: var(--font-mono);
-        background-color: var(--color-background);
-        color: var(--color-text);
-        overscroll-behavior: none;
+      --color-background: #1a1a18;
+      --color-paper: #252524;
+      --color-text: #d0d2cc;
+      --color-text-muted: #a8aaa4;
+      --color-border: #3a3c38;
+      --color-selection: #4a6b8a;
+      --color-button-bg: #2e302c;
+      --color-button-hover: #252722;
+      --color-red: #ef4444;
     }
+  }
 
-    /* Dark theme */
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --color-background: #1a1a18;
-            --color-paper: #252524;
-            --color-text: #d0d2cc;
-            --color-text-muted: #a8aaa4;
-            --color-border: #3a3c38;
-            --color-selection: #4a6b8a;
-            --color-button-bg: #2e302c;
-            --color-button-hover: #252722;
-            --color-red: #ef4444;
-        }
-    }
+  ::selection {
+    background-color: var(--color-selection);
+    color: var(--color-text);
+  }
 
-    ::selection {
-        background-color: var(--color-selection);
-        color: var(--color-text);
-    }
-
-    * {
-        border-color: var(--color-border);
-    }
+  * {
+    border-color: var(--color-border);
+  }
 }
