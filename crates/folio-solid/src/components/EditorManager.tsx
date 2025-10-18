@@ -1,6 +1,6 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { useNotes } from "../api";
-import MdEditor from "./MdEditor";
+import MdLoader from "./MdEditor";
 
 export default function EditorManager() {
   const notes = useNotes();
@@ -18,7 +18,7 @@ export default function EditorManager() {
   });
 
   return (
-    <div class="flex flex-1">
+    <>
       <Show
         when={activeEditors().length > 0}
         fallback={
@@ -28,13 +28,13 @@ export default function EditorManager() {
         }
       >
         <For each={activeEditors()}>
-          {(item, index) => (
+          {(item, _index) => (
             <Show when={item === notes.currentPath()}>
-              <MdEditor path={item} />
+              <MdLoader path={item} />
             </Show>
           )}
         </For>
       </Show>
-    </div>
+    </>
   );
 }

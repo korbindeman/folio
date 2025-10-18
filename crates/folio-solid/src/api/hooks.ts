@@ -7,6 +7,7 @@ import {
   onMount,
   onCleanup,
   type Accessor,
+  Setter,
 } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { commands } from "./commands";
@@ -24,7 +25,14 @@ export function useNote(path: () => string): Resource<Note | undefined> {
  * Hook to load and track note content
  * Returns the note content, loading state, and any errors
  */
-export function useNoteContent(path: Accessor<string | null>) {
+export type NoteContent = {
+  content: Accessor<string>;
+  setContent: Setter<string>;
+  isLoading: Accessor<boolean>;
+  error: Accessor<Error | null>;
+};
+
+export function useNoteContent(path: Accessor<string | null>): NoteContent {
   const [content, setContent] = createSignal("");
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<Error | null>(null);
