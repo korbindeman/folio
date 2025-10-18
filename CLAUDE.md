@@ -4,76 +4,114 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A markdown notes application with multiple frontend implementations. Notes are stored as `directory/_index.md` files on the filesystem with a SQLite database for indexing and full-text search.
+A markdown notes application built with Rust (backend) and SolidJS + Tauri (frontend). Notes are stored as `directory/_index.md` files on the filesystem with a SQLite database for indexing and full-text search.
 
-**Key Design Principle**: The core `NotesApi` is framework-agnostic (pure Rust, no GPUI dependencies) to enable reuse in mobile apps, Tauri, or other frontends.
+**Key Design Principle**: The core `folio_core` library is framework-agnostic (pure Rust) to enable reuse across different frontends (Tauri, mobile apps, etc.).
 
 ## Workspace Structure
 
 This is a Cargo workspace with the following crates:
 
-- **`crates/notes-core`** - Framework-agnostic core library (NotesApi, NoteFilesystem)
-- **`crates/notes-gpui`** - GPUI frontend (currently needs API updates)
-- **`crates/folio/src-tauri`** - Tauri frontend (fully integrated)
+- **`crates/core`** - Framework-agnostic core library (`folio_core` package)
+  - `notes.rs` - `NotesApi`: Core API orchestrating filesystem + database operations
+  - `filesystem.rs` - `NoteFilesystem`: Low-level filesystem operations for `_index.md` files
+  - `watcher.rs` - File system watcher using `notify` crate
+  - `lib.rs` - Public exports
+
+- **`crates/frontend`** - Tauri application (`folio_frontend` package)
+  - `src-tauri/` - Rust backend with Tauri commands
+  - `src/` - SolidJS frontend with Milkdown editor
+  - Uses Vite as build tool, Tailwind CSS for styling
 
 ## Build & Test Commands
+
+### Rust (Backend)
 
 ```bash
 # Build all workspace crates
 cargo build
 
 # Build specific crate
-cargo build -p notes-core
-cargo build -p notes-gpui
+cargo build -p folio_core
+cargo build -p folio_frontend
 
 # Run all tests
 cargo test
 
 # Run tests for specific crate
-cargo test -p notes-core
+cargo test -p folio_core
 
 # Run specific test module
-cargo test -p notes-core notes::
-cargo test -p notes-core filesystem::
+cargo test -p folio_core notes::
+cargo test -p folio_core filesystem::
 
 # Run single test
-cargo test -p notes-core test_create_note
+cargo test -p folio_core test_create_note
 
 # Check compilation without building
 cargo check
+```
+
+### Frontend (Tauri App)
+
+```bash
+cd crates/frontend
+
+# Install dependencies
+npm install  # or bun install
+
+# Run in development mode (hot reload)
+npm run tauri dev
+
+# Build for production
+npm run tauri build
+
+# Format frontend code
+npm run format
+
+# Run Vite dev server only (without Tauri)
+npm run dev
 ```
 
 ## Architecture
 
 ### Layer Separation
 
-**Core (Framework-Agnostic)** - `crates/notes-core`:
-- `notes.rs` - `NotesApi`: Core API orchestrating filesystem + database operations
-- `filesystem.rs` - `NoteFilesystem`: Low-level filesystem operations for `_index.md` files
-- `lib.rs` - Public exports for library consumers
+**Core (Framework-Agnostic)** - `crates/core`:
+- Pure Rust library with no UI framework dependencies
+- Handles all business logic, filesystem operations, and database management
+- Can be integrated into any Rust application (Tauri, mobile apps, CLI tools)
 
-**GPUI Integration** - `crates/notes-gpui`:
-- `service/notes_service.rs` - `NotesService`: GPUI wrapper emitting events for mutations
-- `app.rs` - `Main`: Root GPUI component
-- `ui/` - UI components (editor, breadcrumb)
-- `actions.rs` - GPUI actions for keyboard bindings
+**Tauri Integration** - `crates/frontend/src-tauri`:
+- Thin wrapper exposing `NotesApi` methods as Tauri commands
+- DTO types for JSON serialization (`NoteDTO`, `NoteMetadataDTO`)
+- File watcher setup that emits events to frontend (`notes:changed`, `notes:renamed`)
+- Uses `Arc<Mutex<NotesApi>>` for thread-safe state management
+
+**Frontend** - `crates/frontend/src`:
+- SolidJS reactive UI framework
+- Milkdown markdown editor
+- Tailwind CSS for styling
+- Communicates with Rust backend via Tauri IPC
 
 ### Data Flow
 
 ```
-User Input → GPUI Actions → NotesService (emits events)
-                                ↓
-                           NotesApi (orchestration)
-                          ↙            ↘
-                  NoteFilesystem    SQLite Database
-                  (_index.md)       (index + FTS5)
+User Input → SolidJS UI → Tauri Commands → NotesApi
+                                              ↓
+                                         (orchestration)
+                                        ↙            ↘
+                                NoteFilesystem    SQLite Database
+                                (_index.md)       (index + FTS5)
+                                        ↓
+                                File Watcher → Frontend Events
 ```
 
 **Filesystem is source of truth**, database is derived index.
 
 ### NotesApi Architecture
 
-`NotesApi` orchestrates two layers:
+`NotesApi` (in `crates/core/src/notes.rs`) orchestrates two layers:
 
 1. **Filesystem** (`NoteFilesystem`):
    - Stores notes at `directory/_index.md`
@@ -93,17 +131,16 @@ User Input → GPUI Actions → NotesService (emits events)
 
 **Important**: `create_note()` only creates empty notes. Use `save_note()` to add content afterward.
 
-### NotesService Event System
+### File Watcher System
 
-`NotesService` wraps `NotesApi` and implements `EventEmitter<NotesEvent>` + `Global`:
+The `watcher` module (in `crates/core/src/watcher.rs`) provides real-time filesystem monitoring:
 
-**Events emitted**:
-- `NoteCreated`, `NoteUpdated`, `NoteDeleted`
-- `NoteRenamed { old_path, new_path }`
-- `NoteArchived`, `NoteUnarchived`
-- `NoteSynced`, `NotesReindexed`
-
-**Pattern**: Mutation methods take `&mut Context<Self>` and call `cx.emit()` after successful operations. Read methods don't emit events.
+- Uses the `notify` crate to watch for file changes
+- Debounces events to avoid excessive updates
+- Emits two event types:
+  - `WatcherEvent::NotesChanged` - Note content modified
+  - `WatcherEvent::NotesRenamed` - Note renamed or moved
+- In Tauri app, these are forwarded to frontend as `notes:changed` and `notes:renamed` events
 
 ### Database Schema
 
@@ -144,19 +181,19 @@ When writing tests:
 - Read filesystem directly to verify file creation
 - Tests for `NoteFilesystem` only test filesystem operations
 
-### Using notes-core in Other Projects
+### Using folio_core in Other Projects
 
 To use the core library in a Tauri or other Rust project:
 
 ```toml
 [dependencies]
-notes-core = { path = "../notes-core" }
+folio_core = { path = "../path/to/folio/crates/core" }
 ```
 
 Then import and use:
 
 ```rust
-use notes_core::{NotesApi, Note, Error};
+use folio_core::{NotesApi, Note, Error};
 
 fn main() -> Result<(), Error> {
     let mut api = NotesApi::new("/path/to/notes")?;
@@ -170,18 +207,10 @@ fn main() -> Result<(), Error> {
 }
 ```
 
-### Current State
+### Notes Directory Locations
 
-- **notes-core**: ✅ Fully functional, all 38 tests passing
-- **notes-gpui**: ⚠️ Needs GPUI API updates to match current version
-- **folio (Tauri)**: ✅ Integrated into workspace, ready to use `notes-core`
+The Tauri app stores notes in different locations based on build mode:
 
-Notes directory: `~/.my-notes` (configurable)
-
-### Running the Tauri App
-
-```bash
-cd crates/folio
-npm install  # or bun install
-npm run tauri dev
-```
+- **Development** (`debug_assertions`): `~/Documents/notes-dev`
+- **Production**: `~/Library/Mobile Documents/com~apple~CloudDocs/notes` (iCloud Drive on macOS)
+  - Falls back to `~/Documents/notes` if iCloud path not available
