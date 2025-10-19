@@ -16,18 +16,28 @@
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
 
-  & h1 {
+  & h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-weight: bold;
+    overflow-wrap: anywhere;
   }
 
   & ul {
     list-style-type: disc;
-    padding-left: 1.5rem;
+    padding-left: 1.7em;
   }
 
   & ol {
     list-style-type: decimal;
-    padding-left: 2.2rem;
+    padding-left: 2.5em;
+  }
+
+  & li {
+    overflow-wrap: anywhere;
   }
 
   & hr {

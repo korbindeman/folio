@@ -90,7 +90,7 @@ function CrumbButton(props: {
       </button>
       <dialog
         ref={dialogRef}
-        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[200px] *:border-b *:last:border-0 text-text-muted"
+        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[160px] max-w-[200px] *:border-b *:last:border-0 text-text-muted"
         onClick={handleDialogClick}
       >
         <For each={sortedContent()}>
@@ -102,7 +102,7 @@ function CrumbButton(props: {
                   dialogRef?.close();
                   // console.log("closed");
                 }}
-                class="hover:bg-button-bg px-2 w-full text-left select-none outline-none py-2"
+                class="hover:bg-button-bg px-2 w-full text-left select-none outline-none py-1.5"
                 title={getPathTitle(note.path)}
               >
                 {truncateTitle(getPathTitle(note.path))}

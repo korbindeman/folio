@@ -20,7 +20,7 @@ export function InputModal(props: {
         >
           <input
             type="text"
-            class="grow outline-none bg-transparent"
+            class="grow outline-none bg-transparent text-text"
             placeholder="untitled"
             value={value()}
             onInput={(e) => setValue(e.currentTarget.value)}
