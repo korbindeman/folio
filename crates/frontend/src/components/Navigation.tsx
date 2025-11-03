@@ -80,7 +80,12 @@ function CrumbButton(props: {
 
   return (
     <>
-      <InputModal showModal={showModal()} onSubmit={createNewNote} />
+      <InputModal
+        showModal={showModal()}
+        onSubmit={createNewNote}
+        placeholder="untitled"
+        onClose={() => setShowModal(false)}
+      />
       <button
         ref={buttonRef}
         class="rounded hover:bg-button-hover px-2"
