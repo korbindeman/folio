@@ -1,4 +1,6 @@
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::{Connection, OptionalExtension, Result as SqlResult, params};
@@ -48,6 +50,26 @@ pub struct NoteMetadata {
 pub struct NotesApi {
     fs: NoteFilesystem,
     db: Connection,
+    /// Flag to indicate when API is performing operations (suppresses watcher)
+    pub(crate) operation_in_progress: Arc<AtomicBool>,
+}
+
+/// RAII guard that sets operation_in_progress flag on creation and clears it on drop
+struct OperationGuard {
+    flag: Arc<AtomicBool>,
+}
+
+impl OperationGuard {
+    fn new(flag: Arc<AtomicBool>) -> Self {
+        flag.store(true, Ordering::SeqCst);
+        Self { flag }
+    }
+}
+
+impl Drop for OperationGuard {
+    fn drop(&mut self) {
+        self.flag.store(false, Ordering::SeqCst);
+    }
 }
 
 impl NotesApi {
@@ -68,7 +90,16 @@ impl NotesApi {
         // Verify schema
         verify_schema(&db)?;
 
-        Ok(Self { fs, db })
+        Ok(Self {
+            fs,
+            db,
+            operation_in_progress: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    /// Returns a reference to the operation_in_progress flag for use by the watcher.
+    pub fn operation_flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.operation_in_progress)
     }
 
     /// Returns the root path of the notes directory.
@@ -91,6 +122,8 @@ impl NotesApi {
     /// Returns an error if the parent path doesn't exist (notes must be created top-down).
     /// Creates an empty note in both filesystem and database, returning the created Note.
     pub fn create_note(&mut self, path: &str) -> Result<Note> {
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
+
         // Check if parent exists (if not root-level)
         if let Some(parent_path) = get_parent_path(path) {
             if !self.note_exists(&parent_path)? {
@@ -144,6 +177,8 @@ impl NotesApi {
     /// Writes the new content to filesystem and updates the database index.
     /// Updates modification time and content hash automatically.
     pub fn save_note(&mut self, path: &str, content: &str) -> Result<()> {
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
+
         // Write to filesystem
         self.fs.write_note(path, content)?;
 
@@ -158,6 +193,8 @@ impl NotesApi {
     /// Removes the note directory from filesystem and all associated entries from database.
     /// This operation cannot be undone (unless you archive_note instead).
     pub fn delete_note(&mut self, path: &str) -> Result<()> {
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
+
         // Delete from filesystem (recursive)
         self.fs
             .delete_note(path)
@@ -177,38 +214,94 @@ impl NotesApi {
     /// Moves the note in filesystem and updates database paths for the note and all children.
     /// Returns an error if new_path already exists or old_path doesn't exist.
     pub fn rename_note(&mut self, old_path: &str, new_path: &str) -> Result<()> {
-        // Check if new path already exists
-        if self.note_exists(new_path)? {
-            return Err(Error::AlreadyExists(new_path.to_string()));
-        }
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
 
         // Check if old path exists
         if !self.note_exists(old_path)? {
             return Err(Error::NotFound(old_path.to_string()));
         }
 
+        // Detect case-only rename (same path but different capitalization)
+        let is_case_only_rename =
+            old_path.to_lowercase() == new_path.to_lowercase() && old_path != new_path;
+
+        // Check if new path already exists (skip for case-only renames on case-insensitive FS)
+        if !is_case_only_rename && self.note_exists(new_path)? {
+            return Err(Error::AlreadyExists(new_path.to_string()));
+        }
+
         // Read content from old path
         let content = self.fs.read_note(old_path)?;
 
-        // Get all descendants
-        let descendants: Vec<String> = self
+        // Get all descendants with their content
+        let descendants: Vec<(String, String)> = self
             .db
             .prepare("SELECT path FROM notes WHERE path LIKE ?1")?
             .query_map(params![format!("{}/%", old_path)], |row| row.get(0))?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
+            .collect::<std::result::Result<Vec<String>, _>>()?
+            .into_iter()
+            .map(|path| {
+                let content = self.fs.read_note(&path).unwrap_or_default();
+                (path, content)
+            })
+            .collect();
 
-        // Write to new path
-        self.fs.write_note(new_path, &content)?;
+        // For case-only renames, use a temporary intermediate path to avoid filesystem conflicts
+        if is_case_only_rename {
+            // Generate a unique temporary path
+            let temp_path = format!(
+                "{}_temp_{}",
+                old_path,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            );
 
-        // Move descendants
-        for desc_old in &descendants {
-            let desc_new = desc_old.replacen(old_path, new_path, 1);
-            let desc_content = self.fs.read_note(desc_old)?;
-            self.fs.write_note(&desc_new, &desc_content)?;
+            // Move to temporary location first
+            self.fs.write_note(&temp_path, &content)?;
+
+            // Move descendants to temp location
+            let temp_descendants: Vec<(String, String, String)> = descendants
+                .iter()
+                .map(|(desc_old, desc_content)| {
+                    let desc_temp = desc_old.replacen(old_path, &temp_path, 1);
+                    (desc_old.clone(), desc_temp, desc_content.clone())
+                })
+                .collect();
+
+            for (_, desc_temp, desc_content) in &temp_descendants {
+                self.fs.write_note(desc_temp, desc_content)?;
+            }
+
+            // Delete old path
+            self.fs.delete_note(old_path)?;
+
+            // Move from temp to new path
+            self.fs.write_note(new_path, &content)?;
+
+            for (desc_old, _desc_temp, desc_content) in &temp_descendants {
+                let desc_new = desc_old.replacen(old_path, new_path, 1);
+                self.fs.write_note(&desc_new, desc_content)?;
+            }
+
+            // Clean up temp location
+            self.fs.delete_note(&temp_path).ok(); // Ignore errors on cleanup
+        } else {
+            // Regular rename: write to new location then delete old
+
+            // Write to new path
+            self.fs.write_note(new_path, &content)?;
+
+            // Move descendants
+            for (desc_old, desc_content) in &descendants {
+                let desc_new = desc_old.replacen(old_path, new_path, 1);
+                self.fs.write_note(&desc_new, &desc_content)?;
+            }
+
+            // Delete old path (after all new files are written)
+            self.fs.delete_note(old_path)?;
         }
-
-        // Delete old path
-        self.fs.delete_note(old_path)?;
 
         // Update database: update all paths
         self.db.execute(
@@ -217,7 +310,7 @@ impl NotesApi {
         )?;
 
         // Update descendant paths
-        for desc_old in &descendants {
+        for (desc_old, _) in &descendants {
             let desc_new = desc_old.replacen(old_path, new_path, 1);
             self.db.execute(
                 "UPDATE notes SET path = ?2, parent_path = ?3 WHERE path = ?1",
@@ -365,6 +458,8 @@ impl NotesApi {
     /// Moves the note (and all descendants) to parent/_archive/name in filesystem
     /// and sets the archived flag in database. This is a soft delete that can be undone.
     pub fn archive_note(&mut self, path: &str) -> Result<()> {
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
+
         // Determine archive path
         let archive_path = if let Some(parent) = get_parent_path(path) {
             let name = path.split('/').last().unwrap();
@@ -428,6 +523,8 @@ impl NotesApi {
     /// Moves the note from _archive back to its parent directory and clears the archived flag.
     /// The path parameter should be the current archived path (containing /_archive/).
     pub fn unarchive_note(&mut self, path: &str) -> Result<()> {
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
+
         // Path should be in _archive
         if !path.contains("/_archive/") {
             return Err(Error::NotFound(path.to_string()));
@@ -956,6 +1053,105 @@ mod tests {
 
         let result = api.rename_note("old", "new");
         assert!(matches!(result, Err(Error::AlreadyExists(_))));
+    }
+
+    #[test]
+    fn test_rename_case_only_preserves_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Create note with content
+        api.create_note("test").unwrap();
+        api.save_note("test", "Important content").unwrap();
+
+        // Rename to different capitalization
+        api.rename_note("test", "Test").unwrap();
+
+        // Verify content is preserved
+        assert!(api.note_exists("Test").unwrap());
+        let note = api.get_note("Test").unwrap();
+        assert_eq!(note.content, "Important content");
+        assert_eq!(note.path, "Test");
+    }
+
+    #[test]
+    fn test_rename_case_only_lowercase_to_uppercase() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("lowercase").unwrap();
+        api.save_note("lowercase", "test content").unwrap();
+
+        api.rename_note("lowercase", "UPPERCASE").unwrap();
+
+        assert!(!api.note_exists("lowercase").unwrap());
+        assert!(api.note_exists("UPPERCASE").unwrap());
+        let note = api.get_note("UPPERCASE").unwrap();
+        assert_eq!(note.content, "test content");
+    }
+
+    #[test]
+    fn test_rename_case_only_with_descendants() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Create parent and child notes
+        api.create_note("parent").unwrap();
+        api.save_note("parent", "Parent content").unwrap();
+        api.create_note("parent/child").unwrap();
+        api.save_note("parent/child", "Child content").unwrap();
+
+        // Rename parent to different case
+        api.rename_note("parent", "Parent").unwrap();
+
+        // Verify both parent and child are renamed with content preserved
+        assert!(!api.note_exists("parent").unwrap());
+        assert!(!api.note_exists("parent/child").unwrap());
+        assert!(api.note_exists("Parent").unwrap());
+        assert!(api.note_exists("Parent/child").unwrap());
+
+        let parent = api.get_note("Parent").unwrap();
+        assert_eq!(parent.content, "Parent content");
+
+        let child = api.get_note("Parent/child").unwrap();
+        assert_eq!(child.content, "Child content");
+    }
+
+    #[test]
+    fn test_rename_case_only_mixed_case() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("myNote").unwrap();
+        api.save_note("myNote", "Content here").unwrap();
+
+        // Change case in multiple positions
+        api.rename_note("myNote", "MyNote").unwrap();
+
+        assert!(!api.note_exists("myNote").unwrap());
+        assert!(api.note_exists("MyNote").unwrap());
+        let note = api.get_note("MyNote").unwrap();
+        assert_eq!(note.content, "Content here");
+    }
+
+    #[test]
+    fn test_rename_case_only_nested_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("projects").unwrap();
+        api.create_note("projects/rust-app").unwrap();
+        api.save_note("projects/rust-app", "Rust project content")
+            .unwrap();
+
+        // Rename nested note with case change
+        api.rename_note("projects/rust-app", "projects/Rust-App")
+            .unwrap();
+
+        assert!(!api.note_exists("projects/rust-app").unwrap());
+        assert!(api.note_exists("projects/Rust-App").unwrap());
+        let note = api.get_note("projects/Rust-App").unwrap();
+        assert_eq!(note.content, "Rust project content");
     }
 
     #[test]
