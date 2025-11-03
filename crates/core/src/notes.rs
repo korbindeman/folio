@@ -97,6 +97,37 @@ impl NotesApi {
         })
     }
 
+    /// Creates a new NotesApi instance using platform-specific default paths.
+    ///
+    /// Uses `get_default_notes_path()` to determine the appropriate notes directory
+    /// based on the current platform and debug mode. See `default_paths` module for details.
+    ///
+    /// # Arguments
+    /// * `debug` - Whether the application is running in debug mode (uses separate directory)
+    ///
+    /// # Returns
+    /// `Result<Self>` or an error if the default path cannot be determined or initialization fails.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use folio_core::NotesApi;
+    ///
+    /// let debug = cfg!(debug_assertions);
+    /// let mut api = NotesApi::with_default_path(debug)?;
+    /// api.startup_sync()?;
+    /// # Ok::<(), folio_core::Error>(())
+    /// ```
+    pub fn with_default_path(debug: bool) -> Result<Self> {
+        let notes_root = crate::default_paths::get_default_notes_path(debug).ok_or_else(|| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Could not determine default notes path (home directory not found)",
+            ))
+        })?;
+
+        Self::new(notes_root)
+    }
+
     /// Returns a reference to the operation_in_progress flag for use by the watcher.
     pub fn operation_flag(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.operation_in_progress)
