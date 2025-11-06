@@ -7,13 +7,13 @@ function App() {
 
   return (
     <NotesProvider>
-      <div class="h-screen flex flex-col pt-0">
+      <div class="flex h-screen flex-col pt-0">
         <Navigation />
         <div class="mt-8 flex flex-1">
           <EditorManager />
         </div>
         {isDev && (
-          <div class="fixed bottom-2 left-2 opacity-30 text-xs font-bold z-50">
+          <div class="fixed bottom-2 left-2 z-50 text-xs font-bold opacity-30">
             DEV
           </div>
         )}

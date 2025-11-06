@@ -88,33 +88,33 @@ function CrumbButton(props: {
       />
       <button
         ref={buttonRef}
-        class="rounded hover:bg-button-hover px-2"
+        class="hover:bg-button-hover rounded px-2"
         onClick={handleClick}
       >
         {props.children}
       </button>
       <dialog
         ref={dialogRef}
-        class="backdrop:bg-transparent bg-paper border outline-none rounded-lg translate-x-8 min-w-[160px] max-w-[200px] *:border-b *:last:border-0 text-text-muted"
+        class="bg-paper text-text-muted max-w-[200px] min-w-[160px] translate-x-8 rounded-lg border outline-none *:border-b backdrop:bg-transparent *:last:border-0"
         onClick={handleDialogClick}
       >
         <For each={sortedContent()}>
           {(note) => (
-            <div class="relative group">
+            <div class="group relative">
               <button
                 onClick={() => {
                   notes.setCurrentPath(note.path);
                   dialogRef?.close();
                   // console.log("closed");
                 }}
-                class="hover:bg-button-bg px-2 w-full text-left select-none outline-none py-1.5"
+                class="hover:bg-button-bg w-full px-2 py-1.5 text-left outline-none select-none"
                 title={getPathTitle(note.path)}
               >
                 {truncateTitle(getPathTitle(note.path))}
               </button>
-              <div class="absolute right-2 z-50 h-full group-hover:inline-flex hidden items-center">
+              <div class="absolute right-2 z-50 hidden h-full items-center group-hover:inline-flex">
                 <button
-                  class="hover:text-red hover:opacity-80 p-0.5"
+                  class="hover:text-red p-0.5 hover:opacity-80"
                   onClick={() => handleArchive(note.path)}
                 >
                   ×
@@ -128,7 +128,7 @@ function CrumbButton(props: {
             setShowModal(true);
             dialogRef?.close();
           }}
-          class="px-2 w-full text-left select-none outline-none py-2 bg-button-bg"
+          class="bg-button-bg w-full px-2 py-2 text-left outline-none select-none"
         >
           New note +
         </button>
@@ -200,7 +200,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
         when={isEditing()}
         fallback={
           <button
-            class={`rounded hover:bg-button-hover px-2 ${props.isActive ? "font-bold" : ""}`}
+            class={`hover:bg-button-hover rounded px-2 ${props.isActive ? "font-bold" : ""}`}
             onClick={handleClick}
           >
             {getPathTitle(props.item.path)}
@@ -216,7 +216,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
             if (e.key === "Enter") handleRename();
             if (e.key === "Escape") setIsEditing(false);
           }}
-          class="px-2 outline-none bg-transparent "
+          class="bg-transparent px-2 outline-none"
           ref={setInputRef}
         />
       </Show>
@@ -225,7 +225,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
           when={children().length > 0}
           fallback={
             <button
-              class="rounded hover:bg-button-hover px-2"
+              class="hover:bg-button-hover rounded px-2"
               onClick={handleCreateNote}
             >
               +
@@ -279,7 +279,7 @@ export function Navigation() {
   });
 
   return (
-    <nav class="font-mono flex pb-2 text-sm items-center fixed top-0 left-0 px-4 h-8 w-full bg-background select-none z-10">
+    <nav class="bg-background fixed top-0 left-0 z-10 flex h-8 w-full items-center px-4 pb-2 font-mono text-sm select-none">
       <div class="flex flex-1">
         <RootCrumb />
         <For each={items()}>
@@ -289,9 +289,9 @@ export function Navigation() {
           }}
         </For>
       </div>
-      <div class="flex gap-1 ml-4">
+      <div class="ml-4 flex gap-1">
         <button
-          class="rounded hover:bg-button-hover px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
           onClick={() => notes.goBack()}
           disabled={!notes.canGoBack()}
           title="Go back"
@@ -299,7 +299,7 @@ export function Navigation() {
           ←
         </button>
         <button
-          class="rounded hover:bg-button-hover px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+          class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
           onClick={() => notes.goForward()}
           disabled={!notes.canGoForward()}
           title="Go forward"

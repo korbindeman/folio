@@ -110,11 +110,11 @@ export function Editor() {
   });
 
   return (
-    <div class="flex-1 flex flex-col">
+    <div class="flex flex-1 flex-col">
       <Show
         when={notes.currentPath()}
         fallback={
-          <div class="flex items-center justify-center flex-1 text-text-muted select-none">
+          <div class="text-text-muted flex flex-1 items-center justify-center select-none">
             No note selected
           </div>
         }
@@ -127,7 +127,7 @@ export function Editor() {
             value={content()}
             onInput={(e) => handleContentChange(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            class="flex-1 w-full text-sm resize-none outline-none px-1"
+            class="w-full flex-1 resize-none px-1 text-sm outline-none"
             placeholder="Write your note here..."
             disabled={isSaving()}
           />

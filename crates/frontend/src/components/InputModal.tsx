@@ -45,18 +45,18 @@ export function InputModal(props: {
   return (
     <Show when={props.showModal}>
       <div
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
         onClick={handleBackdropClick}
       >
         <div
-          class="border rounded p-4 w-[400px] bg-button-bg"
+          class="bg-button-bg w-[400px] rounded border p-4"
           onClick={(e) => e.stopPropagation()}
         >
           <form onSubmit={handleSubmit}>
             <input
               ref={inputRef}
               type="text"
-              class="w-full outline-none bg-transparent text-text"
+              class="text-text w-full bg-transparent outline-none"
               placeholder={props.placeholder}
               value={value()}
               onInput={(e) => setValue(e.currentTarget.value)}

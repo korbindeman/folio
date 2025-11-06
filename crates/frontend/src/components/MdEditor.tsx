@@ -52,9 +52,9 @@ function MdEditor({ path, content }: { path: string; content: NoteContent }) {
 
   return (
     <>
-      <div ref={ref!} class="flex flex-col w-full" />
+      <div ref={ref!} class="flex w-full flex-col" />
 
-      <div class="fixed bottom-2 left-2 text-text-muted text-xs opacity-40 pointer-events-none">
+      <div class="text-text-muted pointer-events-none fixed bottom-2 left-2 text-xs opacity-40">
         {(autoSave.isSaving() && "Saving...") ||
           (autoSave.hasUnsavedChanges() && "Unsaved changes")}
       </div>
