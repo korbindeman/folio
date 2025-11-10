@@ -88,31 +88,30 @@ function CrumbButton(props: {
       />
       <button
         ref={buttonRef}
-        class="hover:bg-button-hover rounded px-2"
+        class="hover:bg-button-hover rounded px-2 font-mono"
         onClick={handleClick}
       >
         {props.children}
       </button>
       <dialog
         ref={dialogRef}
-        class="bg-paper text-text-muted max-w-[200px] min-w-[160px] translate-x-8 rounded-lg border outline-none *:border-b backdrop:bg-transparent *:last:border-0"
+        class="bg-paper text-text-muted toutline-none max-w-[200px] min-w-[140px] translate-x-8 rounded-md border px-2.5 py-1 backdrop:bg-transparent"
         onClick={handleDialogClick}
       >
         <For each={sortedContent()}>
           {(note) => (
-            <div class="group relative">
+            <div class="group flex items-center">
               <button
                 onClick={() => {
                   notes.setCurrentPath(note.path);
                   dialogRef?.close();
-                  // console.log("closed");
                 }}
-                class="hover:bg-button-bg w-full px-2 py-1.5 text-left outline-none select-none"
+                class="px-2 py-1.5 pr-1 text-left outline-none select-none hover:underline"
                 title={getPathTitle(note.path)}
               >
                 {truncateTitle(getPathTitle(note.path))}
               </button>
-              <div class="absolute right-2 z-50 hidden h-full items-center group-hover:inline-flex">
+              <div class="z-50 hidden h-full items-center group-hover:inline-flex">
                 <button
                   class="hover:text-red p-0.5 hover:opacity-80"
                   onClick={() => handleArchive(note.path)}
@@ -128,9 +127,9 @@ function CrumbButton(props: {
             setShowModal(true);
             dialogRef?.close();
           }}
-          class="bg-button-bg w-full px-2 py-2 text-left outline-none select-none"
+          class="w-full px-2 py-2 text-left opacity-60 outline-none select-none hover:underline"
         >
-          New note +
+          New +
         </button>
       </dialog>
     </>
@@ -279,7 +278,7 @@ export function Navigation() {
   });
 
   return (
-    <nav class="bg-background fixed top-0 left-0 z-10 flex h-8 w-full items-center px-4 pb-2 font-mono text-sm select-none">
+    <nav class="bg-background font-editor fixed top-0 left-0 z-10 flex h-8 w-full items-center px-4 pb-2 text-sm select-none">
       <div class="flex flex-1">
         <RootCrumb />
         <For each={items()}>

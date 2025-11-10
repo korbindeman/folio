@@ -3,6 +3,7 @@
 @theme {
   --font-serif: "", serif;
   --font-mono: "DM Mono", monospace;
+  --font-editor: "DM Sans", sans-serif;
 
   /* Disable default Tailwind colors */
   --color-*: initial;

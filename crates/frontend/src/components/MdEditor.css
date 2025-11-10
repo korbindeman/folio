@@ -13,8 +13,10 @@
 }
 
 .milkdown .editor {
-  font-size: var(--text-sm);
+  font-size: 14px;
+  font-family: var(--font-editor);
   line-height: var(--text-sm--line-height);
+  letter-spacing: var(--tracking-wide);
 
   & h1,
   h2,
