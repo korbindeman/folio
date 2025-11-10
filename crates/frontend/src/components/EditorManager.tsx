@@ -22,7 +22,7 @@ export default function EditorManager() {
       <Show
         when={activeEditors().length > 0}
         fallback={
-          <div class="text-text-muted/70 flex flex-1 items-center justify-center text-sm tracking-tight select-none">
+          <div class="text-text-muted/70 flex flex-1 items-center justify-center text-sm tracking-wide select-none">
             No note selected
           </div>
         }

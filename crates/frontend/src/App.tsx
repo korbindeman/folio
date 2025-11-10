@@ -13,7 +13,7 @@ function App() {
           <EditorManager />
         </div>
         {isDev && (
-          <div class="fixed bottom-2 left-2 z-50 text-xs font-bold opacity-30">
+          <div class="fixed right-2 bottom-2 z-50 text-xs font-bold opacity-30">
             DEV
           </div>
         )}

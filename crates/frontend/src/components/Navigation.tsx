@@ -95,7 +95,7 @@ function CrumbButton(props: {
       </button>
       <dialog
         ref={dialogRef}
-        class="bg-paper text-text-muted toutline-none max-w-[200px] min-w-[140px] translate-x-8 rounded-md border px-2.5 py-1 backdrop:bg-transparent"
+        class="bg-paper text-text-muted max-w-[200px] min-w-[140px] translate-x-8 rounded-md border px-2.5 py-1 outline-none backdrop:bg-transparent"
         onClick={handleDialogClick}
       >
         <For each={sortedContent()}>
