@@ -1,11 +1,14 @@
 @import "tailwindcss";
+@import "@fontsource/dm-sans";
+@import "@fontsource/dm-mono";
 
 @theme {
+  --font-sans: "DM Sans", sans-serif;
   --font-mono: "DM Mono", monospace;
-  --font-editor: "DM Sans", sans-serif;
 
-  /* Disable default Tailwind colors */
+  /* Disable default Tailwind variables */
   --color-*: initial;
+  --font-*: initial;
 
   /* Light theme (default) */
   --color-background: #f8f6f0;
@@ -20,13 +23,6 @@
 }
 
 @layer base {
-  :root {
-    font-family: var(--font-editor);
-    background-color: var(--color-background);
-    color: var(--color-text);
-    overscroll-behavior: none;
-  }
-
   /* Dark theme */
   @media (prefers-color-scheme: dark) {
     :root {
@@ -42,12 +38,18 @@
     }
   }
 
+  * {
+    border-color: var(--color-border);
+  }
+
+  :root {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    overscroll-behavior: none;
+  }
+
   ::selection {
     background-color: var(--color-selection);
     color: var(--color-text);
-  }
-
-  * {
-    border-color: var(--color-border);
   }
 }

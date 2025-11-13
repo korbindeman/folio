@@ -16,7 +16,6 @@ interface DropdownMenuProps {
   content: NoteMetadata[];
   path: string;
   onRefresh?: () => void;
-  children: JSX.Element;
 }
 
 export function DropdownMenu(props: DropdownMenuProps) {
@@ -264,10 +263,21 @@ export function DropdownMenu(props: DropdownMenuProps) {
       />
       <button
         ref={buttonRef}
-        class="hover:bg-button-hover rounded px-2 font-mono"
+        class="hover:bg-button-hover rounded px-0.5 font-mono"
         onClick={handleClick}
       >
-        {props.children}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          class="size-5"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z"
+            clip-rule="evenodd"
+          />
+        </svg>
       </button>
       <dialog
         ref={dialogRef}

@@ -104,9 +104,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
             content={children()}
             path={props.item.path}
             onRefresh={() => setRefreshKey((k) => k + 1)}
-          >
-            {">"}
-          </DropdownMenu>
+          />
         </Show>
       </Show>
     </>
@@ -127,9 +125,7 @@ function RootCrumb() {
       content={rootNotes()}
       path=""
       onRefresh={() => setRefreshKey((k) => k + 1)}
-    >
-      {">"}
-    </DropdownMenu>
+    />
   );
 }
 
@@ -147,7 +143,7 @@ export function Navigation() {
   });
 
   return (
-    <nav class="bg-background font-editor fixed top-0 left-0 z-10 flex h-8 w-full items-center px-4 pb-2 text-sm select-none">
+    <nav class="bg-background fixed top-0 left-0 z-10 flex h-8 w-full items-center px-4 pb-2 font-sans text-sm select-none">
       <div class="flex flex-1">
         <RootCrumb />
         <For each={items()}>
