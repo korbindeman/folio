@@ -103,6 +103,12 @@ fn get_children(path: String, state: State<AppState>) -> Result<Vec<NoteMetadata
 }
 
 #[tauri::command]
+fn has_children(path: String, state: State<AppState>) -> Result<bool, String> {
+    let api = state.notes_api.lock().unwrap();
+    api.has_children(&path).map_err(|e| format!("{:?}", e))
+}
+
+#[tauri::command]
 fn get_ancestors(path: String, state: State<AppState>) -> Result<Vec<NoteMetadataDTO>, String> {
     let api = state.notes_api.lock().unwrap();
     api.get_ancestors(&path)
@@ -161,6 +167,7 @@ pub fn run() {
             delete_note,
             rename_note,
             get_children,
+            has_children,
             get_ancestors,
             get_root_notes,
             search_notes,

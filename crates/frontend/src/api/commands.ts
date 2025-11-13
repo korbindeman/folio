@@ -18,6 +18,8 @@ export const commands = {
   getChildren: (path: string) =>
     invoke<NoteMetadata[]>("get_children", { path }),
 
+  hasChildren: (path: string) => invoke<boolean>("has_children", { path }),
+
   getAncestors: (path: string) =>
     invoke<NoteMetadata[]>("get_ancestors", { path }),
 

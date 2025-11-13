@@ -391,6 +391,17 @@ impl NotesApi {
         Ok(children)
     }
 
+    /// Returns true if the specified path has at least one child note.
+    /// Only checks non-archived notes.
+    pub fn has_children(&self, path: &str) -> Result<bool> {
+        let mut stmt = self.db.prepare(
+            "SELECT EXISTS(SELECT 1 FROM notes WHERE parent_path = ?1 AND archived = 0 LIMIT 1)",
+        )?;
+
+        let exists: i64 = stmt.query_row(params![path], |row| row.get(0))?;
+        Ok(exists != 0)
+    }
+
     /// Returns the parent note's metadata.
     ///
     /// Returns None for root-level notes. Returns metadata only (no content).
@@ -1216,6 +1227,32 @@ mod tests {
 
         let no_parent = api.get_parent("parent").unwrap();
         assert!(no_parent.is_none());
+    }
+
+    #[test]
+    fn test_has_children() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/child1").unwrap();
+        api.create_note("parent/child2").unwrap();
+        api.create_note("empty").unwrap();
+
+        // Parent with children should return true
+        assert!(api.has_children("parent").unwrap());
+
+        // Note without children should return false
+        assert!(!api.has_children("empty").unwrap());
+        assert!(!api.has_children("parent/child1").unwrap());
+
+        // Archive a child and verify has_children still works
+        api.archive_note("parent/child1").unwrap();
+        assert!(api.has_children("parent").unwrap());
+
+        // Archive all children
+        api.archive_note("parent/child2").unwrap();
+        assert!(!api.has_children("parent").unwrap());
     }
 
     #[test]

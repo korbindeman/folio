@@ -36,7 +36,7 @@ pub enum WatcherEvent {
 /// # Example
 ///
 /// ```no_run
-/// use notes_core::{NotesApi, setup_watcher, WatcherEvent};
+/// use folio_core::{NotesApi, setup_watcher, WatcherEvent};
 /// use std::sync::{Arc, Mutex};
 ///
 /// let api = NotesApi::new("/path/to/notes").unwrap();
