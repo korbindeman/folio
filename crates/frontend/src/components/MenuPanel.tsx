@@ -34,11 +34,6 @@ interface MenuPanelProps {
 }
 
 export function MenuPanel(props: MenuPanelProps) {
-  // Sort notes by modification time (most recent first)
-  const sortedContent = () => {
-    return [...props.items].sort((a, b) => b.modified - a.modified);
-  };
-
   return (
     <div
       ref={(el) => props.setPanelRef(props.level, el)}
@@ -50,7 +45,7 @@ export function MenuPanel(props: MenuPanelProps) {
       }}
       data-level={props.level}
     >
-      <For each={sortedContent()}>
+      <For each={props.items}>
         {(note) => (
           <div
             class="group flex items-center"

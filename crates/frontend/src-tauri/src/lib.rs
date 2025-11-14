@@ -176,6 +176,17 @@ pub fn run() {
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            let app_handle_frecency = app.handle().clone();
+
+            // Set up frecency callback
+            {
+                let mut api = notes_api.lock().unwrap();
+                api.set_frecency_callback(move || {
+                    if let Err(e) = app_handle_frecency.emit("notes:frecency", ()) {
+                        eprintln!("Failed to emit frecency event: {:?}", e);
+                    }
+                });
+            }
 
             // Setup filesystem watcher with event emission
             let _watcher = setup_watcher(
@@ -184,6 +195,7 @@ pub fn run() {
                     let event_name = match event {
                         WatcherEvent::NotesChanged => "notes:changed",
                         WatcherEvent::NotesRenamed => "notes:renamed",
+                        WatcherEvent::FrecencyUpdated => "notes:frecency",
                     };
 
                     // Emit event to frontend

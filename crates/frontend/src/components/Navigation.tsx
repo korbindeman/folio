@@ -1,4 +1,12 @@
-import { createSignal, For, Show, createEffect } from "solid-js";
+import {
+  createSignal,
+  For,
+  Show,
+  createEffect,
+  onMount,
+  onCleanup,
+} from "solid-js";
+import { listen } from "@tauri-apps/api/event";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { getPathTitle } from "../utils/paths";
@@ -13,6 +21,14 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
   const [refreshKey, setRefreshKey] = createSignal(0);
   const [isEditing, setIsEditing] = createSignal(false);
   const [editTitle, setEditTitle] = createSignal("");
+
+  // Listen for frecency updates
+  onMount(async () => {
+    const unlisten = await listen("notes:frecency", () => {
+      setRefreshKey((k) => k + 1);
+    });
+    onCleanup(unlisten);
+  });
 
   createEffect(() => {
     refreshKey(); // Track refresh key
@@ -116,6 +132,14 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
 function RootCrumb() {
   const [rootNotes, setRootNotes] = createSignal<NoteMetadata[]>([]);
   const [refreshKey, setRefreshKey] = createSignal(0);
+
+  // Listen for frecency updates
+  onMount(async () => {
+    const unlisten = await listen("notes:frecency", () => {
+      setRefreshKey((k) => k + 1);
+    });
+    onCleanup(unlisten);
+  });
 
   createEffect(() => {
     refreshKey(); // Track refresh key

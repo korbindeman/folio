@@ -1,4 +1,5 @@
-import { createSignal, For, JSX } from "solid-js";
+import { createSignal, For, JSX, onMount, onCleanup } from "solid-js";
+import { listen } from "@tauri-apps/api/event";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { InputModal } from "./InputModal";
@@ -33,6 +34,19 @@ export function DropdownMenu(props: DropdownMenuProps) {
   const [hasChildrenMap, setHasChildrenMap] = createSignal<
     Record<string, boolean>
   >({});
+
+  // Listen for frecency updates and clear cache
+  onMount(async () => {
+    const unlisten = await listen("notes:frecency", () => {
+      // Clear cache to force refetch with new order
+      setChildrenCache(new Map());
+      // Trigger refresh if callback provided
+      if (props.onRefresh) {
+        props.onRefresh();
+      }
+    });
+    onCleanup(unlisten);
+  });
 
   // Track refs for positioning
   const panelRefs = new Map<number, HTMLDivElement>();

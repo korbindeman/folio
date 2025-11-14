@@ -52,6 +52,8 @@ pub struct NotesApi {
     db: Connection,
     /// Flag to indicate when API is performing operations (suppresses watcher)
     pub(crate) operation_in_progress: Arc<AtomicBool>,
+    /// Optional callback for frecency updates
+    frecency_callback: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 /// RAII guard that sets operation_in_progress flag on creation and clears it on drop
@@ -94,6 +96,7 @@ impl NotesApi {
             fs,
             db,
             operation_in_progress: Arc::new(AtomicBool::new(false)),
+            frecency_callback: None,
         })
     }
 
@@ -138,6 +141,15 @@ impl NotesApi {
         self.fs.root_path()
     }
 
+    /// Sets a callback to be invoked when frecency scores are updated.
+    /// This allows the frontend to refresh navigation when scores change.
+    pub fn set_frecency_callback<F>(&mut self, callback: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.frecency_callback = Some(Arc::new(callback));
+    }
+
     /// Syncs the database index with the filesystem on startup.
     ///
     /// Scans all notes in the filesystem and ensures the database is up to date.
@@ -168,15 +180,13 @@ impl NotesApi {
         // Index in database
         self.sync_note(path)?;
 
-        // Return the created note
-        self.get_note(path)
+        // Return the created note (without tracking access)
+        self.get_note_internal(path)
     }
 
-    /// Retrieves a note with its full content.
-    ///
-    /// Reads the content from filesystem and metadata from database.
-    /// Returns the complete Note including id, path, content, and modification time.
-    pub fn get_note(&self, path: &str) -> Result<Note> {
+    /// Retrieves a note with its full content without tracking access.
+    /// Internal method used by operations that shouldn't count as user access.
+    fn get_note_internal(&self, path: &str) -> Result<Note> {
         // Read content from filesystem
         let content = self
             .fs
@@ -203,10 +213,25 @@ impl NotesApi {
         })
     }
 
+    /// Retrieves a note with its full content.
+    ///
+    /// Reads the content from filesystem and metadata from database.
+    /// Returns the complete Note including id, path, content, and modification time.
+    /// Records an access to the note and propagates to ancestors.
+    pub fn get_note(&mut self, path: &str) -> Result<Note> {
+        let note = self.get_note_internal(path)?;
+
+        // Record access for frecency tracking
+        self.record_access(path)?;
+
+        Ok(note)
+    }
+
     /// Updates an existing note's content.
     ///
     /// Writes the new content to filesystem and updates the database index.
     /// Updates modification time and content hash automatically.
+    /// Records an access to the note and propagates to ancestors.
     pub fn save_note(&mut self, path: &str, content: &str) -> Result<()> {
         let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
 
@@ -215,6 +240,9 @@ impl NotesApi {
 
         // Update database
         self.sync_note(path)?;
+
+        // Record access for frecency tracking
+        self.record_access(path)?;
 
         Ok(())
     }
@@ -366,14 +394,15 @@ impl NotesApi {
 
     // Navigation methods
 
-    /// Returns all direct children of a note.
+    /// Returns all direct children of a note, sorted by frecency score.
     ///
     /// Returns metadata only (no content) for all notes whose parent is the specified path.
+    /// Children are sorted by frecency score (descending), with alphabetical fallback.
     /// Useful for displaying note hierarchies and navigation trees.
     pub fn get_children(&self, path: &str) -> Result<Vec<NoteMetadata>> {
         let mut stmt = self
             .db
-            .prepare("SELECT id, path, mtime, archived FROM notes WHERE parent_path = ?1")?;
+            .prepare("SELECT id, path, mtime, archived FROM notes WHERE parent_path = ?1 ORDER BY frecency_score DESC, path ASC")?;
 
         let children = stmt
             .query_map(params![path], |row| {
@@ -468,14 +497,15 @@ impl NotesApi {
         Ok(ancestors)
     }
 
-    /// Returns all top-level notes (notes without a parent).
+    /// Returns all top-level notes (notes without a parent), sorted by frecency score.
     ///
     /// Returns metadata for all notes at the root of the hierarchy.
+    /// Notes are sorted by frecency score (descending), with alphabetical fallback.
     /// Useful for displaying the main navigation or note list.
     pub fn get_root_notes(&self) -> Result<Vec<NoteMetadata>> {
         let mut stmt = self
             .db
-            .prepare("SELECT id, path, mtime, archived FROM notes WHERE parent_path IS NULL")?;
+            .prepare("SELECT id, path, mtime, archived FROM notes WHERE parent_path IS NULL ORDER BY frecency_score DESC, path ASC")?;
 
         let roots = stmt
             .query_map([], |row| {
@@ -763,6 +793,81 @@ impl NotesApi {
 
         Ok(())
     }
+
+    // Frecency tracking methods
+
+    /// Calculates the frecency score for a note based on access count and recency.
+    ///
+    /// Formula: access_count * (100 / (days_since_access + 1))
+    /// This gives higher scores to frequently accessed notes with a boost for recent access.
+    fn calculate_frecency_score(access_count: i64, last_accessed_at: Option<i64>) -> f64 {
+        let access_count = access_count as f64;
+
+        if let Some(last_accessed) = last_accessed_at {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64;
+
+            let seconds_since_access = (now - last_accessed).max(0);
+            let days_since_access = (seconds_since_access as f64) / 86400.0; // 86400 seconds in a day
+
+            let recency_bonus = 100.0 / (days_since_access + 1.0);
+            access_count * recency_bonus
+        } else {
+            // No access history, return minimal score
+            0.0
+        }
+    }
+
+    /// Records an access to a note and updates its frecency score.
+    /// Also propagates the access to all ancestor notes.
+    fn record_access(&mut self, path: &str) -> Result<()> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        // Update the note itself
+        self.update_frecency(path, now)?;
+
+        // Propagate to ancestors
+        let mut current = path.to_string();
+        while let Some(parent_path) = get_parent_path(&current) {
+            if self.note_exists(&parent_path)? {
+                self.update_frecency(&parent_path, now)?;
+            }
+            current = parent_path;
+        }
+
+        // Notify callback that frecency scores have changed
+        if let Some(callback) = &self.frecency_callback {
+            callback();
+        }
+
+        Ok(())
+    }
+
+    /// Updates a single note's access count, timestamp, and frecency score.
+    fn update_frecency(&mut self, path: &str, access_time: i64) -> Result<()> {
+        // Get current values
+        let (access_count, _last_accessed): (i64, Option<i64>) = self.db.query_row(
+            "SELECT access_count, last_accessed_at FROM notes WHERE path = ?1",
+            params![path],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+
+        let new_count = access_count + 1;
+        let new_score = Self::calculate_frecency_score(new_count, Some(access_time));
+
+        // Update database
+        self.db.execute(
+            "UPDATE notes SET access_count = ?1, last_accessed_at = ?2, frecency_score = ?3 WHERE path = ?4",
+            params![new_count, access_time, new_score, path],
+        )?;
+
+        Ok(())
+    }
 }
 
 // Helper functions
@@ -817,8 +922,19 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         conn.pragma_update(None, "user_version", 1)?;
     }
 
+    if version < 2 {
+        // Add frecency columns
+        conn.execute_batch(
+            "ALTER TABLE notes ADD COLUMN access_count INTEGER DEFAULT 0;
+             ALTER TABLE notes ADD COLUMN last_accessed_at INTEGER;
+             ALTER TABLE notes ADD COLUMN frecency_score REAL DEFAULT 0;
+             CREATE INDEX idx_frecency_score ON notes(frecency_score DESC);",
+        )?;
+        conn.pragma_update(None, "user_version", 2)?;
+    }
+
     // Future migrations go here
-    // if version < 2 { ... }
+    // if version < 3 { ... }
 
     Ok(())
 }
@@ -863,9 +979,9 @@ mod tests {
         let db_path = temp_dir.path().join(".notes.db");
         assert!(db_path.exists());
 
-        // Verify schema version
+        // Verify schema version (should be latest)
         let version = get_schema_version(&api.db).unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
     }
 
     #[test]
@@ -879,7 +995,7 @@ mod tests {
         // Open existing database
         let api2 = NotesApi::new(temp_dir.path()).unwrap();
         let version = get_schema_version(&api2.db).unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
     }
 
     #[test]
@@ -956,11 +1072,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join(".notes.db");
 
-        // Create database with wrong schema
+        // Create database with wrong schema at current version
         let conn = Connection::open(&db_path).unwrap();
         conn.execute("CREATE TABLE wrong_table (id INTEGER)", [])
             .unwrap();
-        conn.pragma_update(None, "user_version", 1).unwrap();
+        conn.pragma_update(None, "user_version", 2).unwrap();
         drop(conn);
 
         // Attempt to open should fail verification
@@ -1404,5 +1520,231 @@ mod tests {
 
         // Verify note is re-indexed
         assert!(api.note_exists("note1").unwrap());
+    }
+
+    #[test]
+    fn test_frecency_get_note_updates_score() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+
+        // Get note (should record access)
+        api.get_note("test").unwrap();
+
+        // Check frecency score was updated
+        let (access_count, score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["test"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        assert_eq!(access_count, 1);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_frecency_save_note_updates_score() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+        api.save_note("test", "Content").unwrap();
+
+        // Check frecency score was updated
+        let (access_count, score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["test"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        assert_eq!(access_count, 1);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_frecency_multiple_accesses() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+
+        // Access multiple times
+        api.get_note("test").unwrap();
+        api.get_note("test").unwrap();
+        api.save_note("test", "Content").unwrap();
+
+        // Check access count increased
+        let (access_count, score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["test"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        assert_eq!(access_count, 3);
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_frecency_propagates_to_ancestors() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/child").unwrap();
+
+        // Access child note
+        api.get_note("parent/child").unwrap();
+
+        // Check that parent also has updated frecency
+        let (parent_count, parent_score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["parent"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        assert_eq!(parent_count, 1);
+        assert!(parent_score > 0.0);
+    }
+
+    #[test]
+    fn test_frecency_children_sorted_by_score() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/a").unwrap();
+        api.create_note("parent/b").unwrap();
+        api.create_note("parent/c").unwrap();
+
+        // Access notes in different order with different frequencies
+        api.get_note("parent/b").unwrap(); // b gets 1 access
+        api.get_note("parent/c").unwrap(); // c gets 2 accesses
+        api.get_note("parent/c").unwrap();
+        // a gets 0 accesses
+
+        // Get children (should be sorted by frecency)
+        let children = api.get_children("parent").unwrap();
+        let paths: Vec<_> = children.iter().map(|c| c.path.as_str()).collect();
+
+        // c should be first (most accesses), then b, then a
+        assert_eq!(paths[0], "parent/c");
+        assert_eq!(paths[1], "parent/b");
+        assert_eq!(paths[2], "parent/a");
+    }
+
+    #[test]
+    fn test_frecency_score_calculation() {
+        // Test the calculation directly
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        // Recent access should have high score
+        let score_recent = NotesApi::calculate_frecency_score(10, Some(now));
+        assert!(score_recent > 900.0); // 10 * (100 / ~1) ≈ 1000
+
+        // Access from 10 days ago should have lower score
+        let ten_days_ago = now - (10 * 86400);
+        let score_old = NotesApi::calculate_frecency_score(10, Some(ten_days_ago));
+        assert!(score_old < 100.0); // 10 * (100 / 11) ≈ 90
+
+        // More accesses should increase score
+        assert!(score_recent > score_old);
+
+        // No access history should give zero score
+        let score_none = NotesApi::calculate_frecency_score(0, None);
+        assert_eq!(score_none, 0.0);
+    }
+
+    #[test]
+    fn test_frecency_propagates_through_multiple_levels() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Create a deep hierarchy: grandparent/parent/child
+        api.create_note("grandparent").unwrap();
+        api.create_note("grandparent/parent").unwrap();
+        api.create_note("grandparent/parent/child").unwrap();
+
+        // Access the deepest child
+        api.get_note("grandparent/parent/child").unwrap();
+
+        // Check that all ancestors have updated frecency
+        let (child_count, child_score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["grandparent/parent/child"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        let (parent_count, parent_score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["grandparent/parent"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        let (grandparent_count, grandparent_score): (i64, f64) = api
+            .db
+            .query_row(
+                "SELECT access_count, frecency_score FROM notes WHERE path = ?1",
+                params!["grandparent"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        // All should have 1 access
+        assert_eq!(child_count, 1);
+        assert_eq!(parent_count, 1);
+        assert_eq!(grandparent_count, 1);
+
+        // All should have positive scores
+        assert!(child_score > 0.0);
+        assert!(parent_score > 0.0);
+        assert!(grandparent_score > 0.0);
+    }
+
+    #[test]
+    fn test_frecency_root_notes_sorted_by_score() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Create three root notes
+        api.create_note("projects").unwrap();
+        api.create_note("notes").unwrap();
+        api.create_note("archive").unwrap();
+
+        // Access them in different frequencies
+        api.get_note("notes").unwrap(); // notes gets 1 access
+        api.get_note("projects").unwrap(); // projects gets 2 accesses
+        api.get_note("projects").unwrap();
+        // archive gets 0 accesses
+
+        // Get root notes (should be sorted by frecency)
+        let roots = api.get_root_notes().unwrap();
+        let paths: Vec<_> = roots.iter().map(|r| r.path.as_str()).collect();
+
+        // projects should be first (most accesses), then notes, then archive
+        assert_eq!(paths[0], "projects");
+        assert_eq!(paths[1], "notes");
+        assert_eq!(paths[2], "archive");
     }
 }

@@ -11,6 +11,8 @@ pub enum WatcherEvent {
     NotesChanged,
     /// Notes were renamed or moved
     NotesRenamed,
+    /// Frecency scores were updated (navigation should refresh)
+    FrecencyUpdated,
 }
 
 /// Sets up a filesystem watcher for the notes directory.

@@ -210,10 +210,18 @@ export function NotesProvider(props: ParentProps) {
       }
     });
 
+    // Listen for frecency updates
+    const unlistenFrecency = await listen("notes:frecency", () => {
+      // Refresh children and root notes to get updated order
+      refetchChildren();
+      refetchRootNotes();
+    });
+
     // Cleanup listeners when component unmounts
     onCleanup(() => {
       unlistenChanged();
       unlistenRenamed();
+      unlistenFrecency();
     });
   };
 
