@@ -169,9 +169,9 @@ export function Navigation() {
   });
 
   return (
-    <div class="fixed top-0 left-0 z-10 w-full">
+    <div class="bg-background fixed top-0 left-0 z-10 w-full">
       <div class="h-8 w-full" data-tauri-drag-region></div>
-      <nav class="bg-background flex h-8 w-full items-center px-4 pb-2 font-sans text-sm select-none">
+      <nav class="flex h-8 w-full items-center px-4 pb-2 font-sans text-sm select-none">
         <div class="flex flex-1">
           <RootCrumb />
           <For each={items()}>
