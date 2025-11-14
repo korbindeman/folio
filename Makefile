@@ -19,7 +19,7 @@ dev: install
 	cd crates/frontend && bun tauri dev
 
 # Build Tauri app for production
-build: install
+build: test install
 	cd crates/frontend && bun tauri build
 
 # Run all tests

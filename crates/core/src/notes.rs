@@ -1868,35 +1868,35 @@ mod tests {
         api.create_note("other/stuff").unwrap();
 
         // Test prefix matching - "hel" should match hello, hello-world, help
-        let results = api.fuzzy_search("hel").unwrap();
+        let results = api.fuzzy_search("hel", None).unwrap();
         assert_eq!(results.len(), 4); // hello, hello-world, help, project/hello
 
         // Verify prefix matches come first
         assert!(results[0].path.starts_with("hel") || results[0].path == "help");
 
         // Test single character
-        let results = api.fuzzy_search("h").unwrap();
+        let results = api.fuzzy_search("h", None).unwrap();
         assert!(results.len() >= 4); // At least the hello variants and help
 
         // Test exact match
-        let results = api.fuzzy_search("hello").unwrap();
+        let results = api.fuzzy_search("hello", None).unwrap();
         assert!(results.iter().any(|n| n.path == "hello"));
         assert!(results.iter().any(|n| n.path == "hello-world"));
 
         // Test case insensitivity
-        let results = api.fuzzy_search("HELLO").unwrap();
+        let results = api.fuzzy_search("HELLO", None).unwrap();
         assert!(results.iter().any(|n| n.path == "hello"));
 
         // Test substring matching
-        let results = api.fuzzy_search("ell").unwrap();
+        let results = api.fuzzy_search("ell", None).unwrap();
         assert!(results.iter().any(|n| n.path == "hello"));
 
         // Test no matches
-        let results = api.fuzzy_search("xyz").unwrap();
+        let results = api.fuzzy_search("xyz", None).unwrap();
         assert_eq!(results.len(), 0);
 
         // Test empty query returns all notes
-        let results = api.fuzzy_search("").unwrap();
+        let results = api.fuzzy_search("", None).unwrap();
         assert_eq!(results.len(), 7); // All notes including parent folders
     }
 
@@ -1914,7 +1914,7 @@ mod tests {
         api.create_note("other/testing-notes").unwrap();
 
         // Prefix matches should rank higher than substring matches
-        let results = api.fuzzy_search("test").unwrap();
+        let results = api.fuzzy_search("test", None).unwrap();
 
         // "test" and "testing" should come before "project/test"
         // (prefix match on path vs prefix match on segment)
