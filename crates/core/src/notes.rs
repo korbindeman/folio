@@ -652,6 +652,80 @@ impl NotesApi {
 
     // Search and sync operations
 
+    /// Returns all non-archived notes, sorted by frecency score.
+    ///
+    /// Returns metadata for all notes that are not archived.
+    /// Notes are sorted by frecency score (descending), with alphabetical fallback.
+    /// Useful for displaying all available notes in a picker or finder.
+    pub fn get_all_notes(&self) -> Result<Vec<NoteMetadata>> {
+        let mut stmt = self
+            .db
+            .prepare("SELECT id, path, mtime, archived FROM notes WHERE archived = 0 ORDER BY frecency_score DESC, path ASC")?;
+
+        let notes = stmt
+            .query_map([], |row| {
+                let mtime: i64 = row.get(2)?;
+                let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                Ok(NoteMetadata {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    modified,
+                    archived: row.get::<_, i64>(3)? != 0,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(notes)
+    }
+
+    /// Fuzzy search for notes by path/title (for quick finder/picker UIs).
+    ///
+    /// Performs case-insensitive substring matching on note paths.
+    /// Returns non-archived notes sorted by:
+    /// 1. Path prefix matches first (e.g., "hel" matches "hello/world" before "some/hello")
+    /// 2. Frecency score for same match quality
+    /// 3. Alphabetical order as final tiebreaker
+    ///
+    /// Designed for interactive note pickers where users type partial titles.
+    pub fn fuzzy_search(&self, query: &str) -> Result<Vec<NoteMetadata>> {
+        if query.is_empty() {
+            return self.get_all_notes();
+        }
+
+        // Use LIKE for substring matching, with % wildcards
+        let pattern = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
+
+        let mut stmt = self.db.prepare(
+            "SELECT id, path, mtime, archived,
+                    CASE
+                        WHEN LOWER(path) LIKE LOWER(?1) THEN 1
+                        WHEN LOWER(path) LIKE LOWER(?2) THEN 2
+                        ELSE 3
+                    END as match_priority
+             FROM notes
+             WHERE archived = 0 AND LOWER(path) LIKE LOWER(?2)
+             ORDER BY match_priority ASC, frecency_score DESC, path ASC",
+        )?;
+
+        // ?1 = prefix pattern (query%), ?2 = substring pattern (%query%)
+        let prefix_pattern = format!("{}%", query.replace('%', "\\%").replace('_', "\\_"));
+
+        let results = stmt
+            .query_map(params![prefix_pattern, pattern], |row| {
+                let mtime: i64 = row.get(2)?;
+                let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                Ok(NoteMetadata {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    modified,
+                    archived: row.get::<_, i64>(3)? != 0,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(results)
+    }
+
     /// Performs full-text search across all note content.
     ///
     /// Uses FTS5 to search both note paths and content. Returns metadata for matching notes.
@@ -1746,5 +1820,80 @@ mod tests {
         assert_eq!(paths[0], "projects");
         assert_eq!(paths[1], "notes");
         assert_eq!(paths[2], "archive");
+    }
+
+    #[test]
+    fn test_fuzzy_search_prefix_matching() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Create notes with various names
+        api.create_note("hello").unwrap();
+        api.create_note("hello-world").unwrap();
+        api.create_note("help").unwrap();
+        api.create_note("project").unwrap();
+        api.create_note("project/hello").unwrap();
+        api.create_note("other").unwrap();
+        api.create_note("other/stuff").unwrap();
+
+        // Test prefix matching - "hel" should match hello, hello-world, help
+        let results = api.fuzzy_search("hel").unwrap();
+        assert_eq!(results.len(), 4); // hello, hello-world, help, project/hello
+
+        // Verify prefix matches come first
+        assert!(results[0].path.starts_with("hel") || results[0].path == "help");
+
+        // Test single character
+        let results = api.fuzzy_search("h").unwrap();
+        assert!(results.len() >= 4); // At least the hello variants and help
+
+        // Test exact match
+        let results = api.fuzzy_search("hello").unwrap();
+        assert!(results.iter().any(|n| n.path == "hello"));
+        assert!(results.iter().any(|n| n.path == "hello-world"));
+
+        // Test case insensitivity
+        let results = api.fuzzy_search("HELLO").unwrap();
+        assert!(results.iter().any(|n| n.path == "hello"));
+
+        // Test substring matching
+        let results = api.fuzzy_search("ell").unwrap();
+        assert!(results.iter().any(|n| n.path == "hello"));
+
+        // Test no matches
+        let results = api.fuzzy_search("xyz").unwrap();
+        assert_eq!(results.len(), 0);
+
+        // Test empty query returns all notes
+        let results = api.fuzzy_search("").unwrap();
+        assert_eq!(results.len(), 7); // All notes including parent folders
+    }
+
+    #[test]
+    fn test_fuzzy_search_ranking() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        // Create notes where ranking matters
+        api.create_note("test").unwrap();
+        api.create_note("testing").unwrap();
+        api.create_note("project").unwrap();
+        api.create_note("project/test").unwrap();
+        api.create_note("other").unwrap();
+        api.create_note("other/testing-notes").unwrap();
+
+        // Prefix matches should rank higher than substring matches
+        let results = api.fuzzy_search("test").unwrap();
+
+        // "test" and "testing" should come before "project/test"
+        // (prefix match on path vs prefix match on segment)
+        let paths: Vec<_> = results.iter().map(|n| n.path.as_str()).collect();
+        let test_pos = paths.iter().position(|&p| p == "test").unwrap();
+        let testing_pos = paths.iter().position(|&p| p == "testing").unwrap();
+        let project_test_pos = paths.iter().position(|&p| p == "project/test").unwrap();
+
+        // Prefix matches (test, testing) should come before path segment matches
+        assert!(test_pos < project_test_pos);
+        assert!(testing_pos < project_test_pos);
     }
 }

@@ -25,6 +25,11 @@ export const commands = {
 
   getRootNotes: () => invoke<NoteMetadata[]>("get_root_notes"),
 
+  getAllNotes: () => invoke<NoteMetadata[]>("get_all_notes"),
+
+  fuzzySearchNotes: (query: string) =>
+    invoke<NoteMetadata[]>("fuzzy_search_notes", { query }),
+
   searchNotes: (query: string) =>
     invoke<NoteMetadata[]>("search_notes", { query }),
 

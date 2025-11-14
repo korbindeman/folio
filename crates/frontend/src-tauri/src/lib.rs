@@ -125,6 +125,25 @@ fn get_root_notes(state: State<AppState>) -> Result<Vec<NoteMetadataDTO>, String
 }
 
 #[tauri::command]
+fn get_all_notes(state: State<AppState>) -> Result<Vec<NoteMetadataDTO>, String> {
+    let api = state.notes_api.lock().unwrap();
+    api.get_all_notes()
+        .map(|notes| notes.into_iter().map(|n| n.into()).collect())
+        .map_err(|e| format!("{:?}", e))
+}
+
+#[tauri::command]
+fn fuzzy_search_notes(
+    query: String,
+    state: State<AppState>,
+) -> Result<Vec<NoteMetadataDTO>, String> {
+    let api = state.notes_api.lock().unwrap();
+    api.fuzzy_search(&query)
+        .map(|results| results.into_iter().map(|r| r.into()).collect())
+        .map_err(|e| format!("{:?}", e))
+}
+
+#[tauri::command]
 fn search_notes(query: String, state: State<AppState>) -> Result<Vec<NoteMetadataDTO>, String> {
     let api = state.notes_api.lock().unwrap();
     api.search(&query)
@@ -173,6 +192,8 @@ pub fn run() {
             has_children,
             get_ancestors,
             get_root_notes,
+            get_all_notes,
+            fuzzy_search_notes,
             search_notes,
             archive_note,
             unarchive_note,

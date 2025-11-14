@@ -30,6 +30,7 @@ interface MenuPanelProps {
   onArchiveItem: (item: NoteMetadata) => void;
   onCreateChild: (parentPath: string) => void;
   onContextMenu: (e: MouseEvent, note: NoteMetadata, items: MenuItem[]) => void;
+  createContextMenuItems: (note: NoteMetadata) => MenuItem[];
 
   // Ref callbacks for positioning
   setPanelRef: (level: number, el: HTMLDivElement | undefined) => void;
@@ -50,36 +51,12 @@ export function MenuPanel(props: MenuPanelProps) {
     >
       <For each={props.items}>
         {(note) => {
-          const getContextMenuItems = (): MenuItem[] => {
-            return [
-              {
-                label: "Move",
-                onClick: () => {
-                  console.log("Move note:", note.path);
-                },
-              },
-              { separator: true },
-              {
-                label: "Archive",
-                onClick: () => {
-                  props.onArchiveItem(note);
-                },
-              },
-              {
-                label: "Trash",
-                onClick: () => {
-                  console.log("Trash note:", note.path);
-                },
-              },
-            ];
-          };
-
           return (
             <div
               class="group flex items-center"
               onMouseEnter={() => props.onHoverItem(props.level, note)}
               onContextMenu={(e) =>
-                props.onContextMenu(e, note, getContextMenuItems())
+                props.onContextMenu(e, note, props.createContextMenuItems(note))
               }
             >
               <button

@@ -1,8 +1,9 @@
-import { createSignal, For, JSX, onMount, onCleanup, Show } from "solid-js";
+import { createSignal, For, onMount, onCleanup, Show } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { InputModal } from "./InputModal";
+import { NoteFinder } from "./NoteFinder";
 import { MenuPanel } from "./MenuPanel";
 import { useToast } from "./Toast";
 import type { NoteMetadata } from "../types";
@@ -30,6 +31,8 @@ export function DropdownMenu(props: DropdownMenuProps) {
   const toast = useToast();
   const [showModal, setShowModal] = createSignal(false);
   const [createAtPath, setCreateAtPath] = createSignal("");
+  const [showNoteFinder, setShowNoteFinder] = createSignal(false);
+  const [noteToMove, setNoteToMove] = createSignal<string | null>(null);
   const [openPanels, setOpenPanels] = createSignal<PanelState[]>([]);
   const [childrenCache, setChildrenCache] = createSignal(
     new Map<string, NoteMetadata[]>(),
@@ -306,8 +309,86 @@ export function DropdownMenu(props: DropdownMenuProps) {
     });
   };
 
+  const createContextMenuItems = (note: NoteMetadata): MenuItem[] => {
+    return [
+      {
+        label: "Move",
+        onClick: () => {
+          handleMoveNote(note.path);
+        },
+      },
+      { separator: true },
+      {
+        label: "Archive",
+        onClick: () => {
+          handleArchiveItem(note);
+        },
+      },
+      {
+        label: "Trash",
+        onClick: () => {
+          console.log("Trash note:", note.path);
+        },
+      },
+    ];
+  };
+
   const handleCloseContextMenu = () => {
     setContextMenu(null);
+  };
+
+  const handleMoveNote = (notePath: string) => {
+    setNoteToMove(notePath);
+    setShowNoteFinder(true);
+    dialogRef?.close();
+    setOpenPanels([]);
+  };
+
+  const handleMoveToDestination = async (destination: NoteMetadata) => {
+    const sourceNotePath = noteToMove();
+    if (!sourceNotePath) return;
+
+    const noteTitle = sourceNotePath.split("/").pop();
+    if (!noteTitle) return;
+
+    const newPath = destination.path
+      ? `${destination.path}/${noteTitle}`
+      : noteTitle;
+
+    // Prevent moving to itself
+    if (sourceNotePath === newPath) {
+      toast.error("Cannot move note to itself");
+      return;
+    }
+
+    // Prevent moving to a descendant
+    if (newPath.startsWith(sourceNotePath + "/")) {
+      toast.error("Cannot move note to its own descendant");
+      return;
+    }
+
+    try {
+      await commands.renameNote(sourceNotePath, newPath);
+
+      // Invalidate cache for both old and new parents
+      const cache = childrenCache();
+      const oldParent = sourceNotePath.split("/").slice(0, -1).join("/");
+      const newParent = destination.path;
+      cache.delete(oldParent);
+      cache.delete(newParent);
+      setChildrenCache(new Map(cache));
+
+      // Update current path if the moved note was selected
+      if (notes.currentPath() === sourceNotePath) {
+        notes.setCurrentPath(newPath);
+      }
+
+      props.onRefresh?.();
+      toast.success("Note moved", { duration: "short" });
+    } catch (err) {
+      console.error("Failed to move note:", err);
+      toast.error(`Failed to move: ${err}`);
+    }
   };
 
   const createNewNote = async (title: string) => {
@@ -338,11 +419,17 @@ export function DropdownMenu(props: DropdownMenuProps) {
         placeholder="untitled"
         onClose={() => setShowModal(false)}
       />
+      <NoteFinder
+        showModal={showNoteFinder()}
+        onSelect={handleMoveToDestination}
+        onClose={() => setShowNoteFinder(false)}
+        placeholder="Move to..."
+      />
       <button
         ref={buttonRef}
         class="hover:bg-button-hover rounded px-0.5 font-mono"
         onClick={handleClick}
-        onMouseDown={(e) => {
+        onMouseDown={() => {
           // Close context menu when clicking outside
           if (contextMenu()) {
             handleCloseContextMenu();
@@ -392,6 +479,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
               setRowRef={setRowRef}
               onContextMenu={handleContextMenu}
               contextMenuNotePath={contextMenu()?.notePath}
+              createContextMenuItems={createContextMenuItems}
             />
           )}
         </For>

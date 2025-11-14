@@ -12,7 +12,8 @@
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check": "tsc --noEmit --jsx preserve --skipLibCheck"
   },
   "license": "MIT",
   "dependencies": {
