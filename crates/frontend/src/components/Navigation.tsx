@@ -169,34 +169,37 @@ export function Navigation() {
   });
 
   return (
-    <nav class="bg-background fixed top-0 left-0 z-10 flex h-8 w-full items-center px-4 pb-2 font-sans text-sm select-none">
-      <div class="flex flex-1">
-        <RootCrumb />
-        <For each={items()}>
-          {(item, index) => {
-            const isActive = () => index() === items().length - 1;
-            return <Breadcrumb item={item} isActive={isActive()} />;
-          }}
-        </For>
-      </div>
-      <div class="ml-4 flex gap-1">
-        <button
-          class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
-          onClick={() => notes.goBack()}
-          disabled={!notes.canGoBack()}
-          title="Go back"
-        >
-          ←
-        </button>
-        <button
-          class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
-          onClick={() => notes.goForward()}
-          disabled={!notes.canGoForward()}
-          title="Go forward"
-        >
-          →
-        </button>
-      </div>
-    </nav>
+    <div class="fixed top-0 left-0 z-10 w-full">
+      <div class="h-8 w-full" data-tauri-drag-region></div>
+      <nav class="bg-background flex h-8 w-full items-center px-4 pb-2 font-sans text-sm select-none">
+        <div class="flex flex-1">
+          <RootCrumb />
+          <For each={items()}>
+            {(item, index) => {
+              const isActive = () => index() === items().length - 1;
+              return <Breadcrumb item={item} isActive={isActive()} />;
+            }}
+          </For>
+        </div>
+        <div class="ml-4 flex gap-1">
+          <button
+            class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
+            onClick={() => notes.goBack()}
+            disabled={!notes.canGoBack()}
+            title="Go back"
+          >
+            ←
+          </button>
+          <button
+            class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
+            onClick={() => notes.goForward()}
+            disabled={!notes.canGoForward()}
+            title="Go forward"
+          >
+            →
+          </button>
+        </div>
+      </nav>
+    </div>
   );
 }

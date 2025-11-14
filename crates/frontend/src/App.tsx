@@ -11,7 +11,7 @@ function App() {
       <ToastProvider>
         <div class="flex h-screen flex-col pt-0">
           <Navigation />
-          <div class="mt-8 flex flex-1">
+          <div class="mt-16 flex flex-1">
             <EditorManager />
           </div>
           {isDev && (
