@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "folio",
+  "productName": "Folio",
   "version": "0.1.0",
   "identifier": "co.korbin.folio",
   "build": {
