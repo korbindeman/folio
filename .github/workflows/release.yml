@@ -50,14 +50,21 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
+        id: rust-cache
         uses: swatinem/rust-cache@v2
         with:
           # Cache the entire workspace
-          workspaces: "."
+          workspaces: |
+            . -> target
+          # Use a stable shared key across jobs/runs per OS
+          shared-key: ${{ runner.os }}
           # Include target in cache key for cross-compilation
           key: ${{ matrix.platform }}-${{ matrix.args }}
           # Save cache even if build fails
-          save-if: true
+          cache-on-failure: true
+
+      - name: Show cache status
+        run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       - name: Install frontend dependencies
         working-directory: crates/frontend
