@@ -37,7 +37,7 @@ export function MenuPanel(props: MenuPanelProps) {
   return (
     <div
       ref={(el) => props.setPanelRef(props.level, el)}
-      class="bg-paper text-text-muted absolute max-w-[200px] min-w-[160px] rounded-md border px-2.5 py-1 outline-none"
+      class="bg-paper text-text-muted absolute w-fit min-w-[140px] rounded-md border px-2.5 py-1 pr-4 outline-none"
       style={{
         left: `${props.left}px`,
         top: `${props.top}px`,
@@ -54,12 +54,12 @@ export function MenuPanel(props: MenuPanelProps) {
             <button
               ref={(el) => props.setRowRef(note.path, el)}
               onClick={() => props.onClickItem(note)}
-              class="px-2 py-1.5 pr-0 text-left outline-none select-none hover:underline"
+              class="px-2 py-1.5 pr-0 text-left whitespace-nowrap outline-none select-none hover:underline"
               title={getPathTitle(note.path)}
             >
               {truncateTitle(getPathTitle(note.path))}
             </button>
-            <span class="relative ml-1 inline-flex items-center">
+            <span class="relative ml-1 inline-flex w-2 items-center">
               {props.hasChildrenMap?.[note.path] && (
                 <span class="text-xs opacity-50 group-hover:hidden">›</span>
               )}
