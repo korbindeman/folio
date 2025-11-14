@@ -10,6 +10,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { getPathTitle } from "../utils/paths";
+import { expandMacros } from "../utils/macros";
 import { DropdownMenu } from "./DropdownMenu";
 import { useToast } from "./Toast";
 import type { NoteMetadata } from "../types";
@@ -62,7 +63,8 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
   };
 
   const handleRename = async () => {
-    const newTitle = editTitle().trim() || "untitled";
+    const expandedTitle = expandMacros(editTitle().trim());
+    const newTitle = expandedTitle || "untitled";
     const currentTitle = getPathTitle(props.item.path);
 
     if (newTitle !== currentTitle) {
