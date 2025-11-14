@@ -56,12 +56,13 @@ jobs:
           # Cache the entire workspace
           workspaces: |
             . -> target
-          # Use a stable shared key across jobs/runs per OS
-          shared-key: ${{ runner.os }}
-          # Include target in cache key for cross-compilation
-          key: ${{ matrix.platform }}-${{ matrix.args }}
+          # Use a stable shared key per OS and architecture
+          shared-key: ${{ runner.os }}-${{ contains(matrix.args, 'aarch64') && 'aarch64' || 'x86_64' }}
           # Save cache even if build fails
           cache-on-failure: true
+          # Don't save cache on tag builds (release builds)
+          # Only restore from main branch builds
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Show cache status
         run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
