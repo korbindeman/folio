@@ -19,14 +19,7 @@ export default function EditorManager() {
 
   return (
     <>
-      <Show
-        when={activeEditors().length > 0}
-        fallback={
-          <div class="text-text-muted/70 flex flex-1 items-center justify-center text-sm tracking-wide select-none">
-            No note selected
-          </div>
-        }
-      >
+      <Show when={activeEditors().length > 0} fallback={<></>}>
         <For each={activeEditors()}>
           {(item, _index) => (
             <Show when={item === notes.currentPath()}>
