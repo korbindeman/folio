@@ -6052,7 +6052,7 @@ dependencies = [
 
 [[package]]
 name = "zinnia_core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "dirs 5.0.1",
  "notify",
@@ -6062,7 +6062,7 @@ dependencies = [
 
 [[package]]
 name = "zinnia_frontend"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "dirs 6.0.0",
  "serde",
