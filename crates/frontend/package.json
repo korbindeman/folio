@@ -1,10 +1,10 @@
 {
-  "name": "folio_frontend",
-  "version": "0.2.3",
+  "name": "zinnia_frontend",
+  "version": "0.3.0",
   "author": "Korbin de Man",
   "repository": {
     "type": "git",
-    "url": "https://github.com/korbindeman/folio"
+    "url": "https://github.com/korbindeman/zinnia"
   },
   "type": "module",
   "scripts": {

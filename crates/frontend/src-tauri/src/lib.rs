@@ -1,7 +1,7 @@
-use folio_core::{Note, NoteMetadata, NotesApi, WatcherEvent, setup_watcher};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
+use zinnia_core::{Note, NoteMetadata, NotesApi, WatcherEvent, setup_watcher};
 
 // Application state holding the NotesApi instance
 pub struct AppState {

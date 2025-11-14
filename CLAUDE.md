@@ -6,19 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A markdown notes application built with Rust (backend) and SolidJS + Tauri (frontend). Notes are stored as `directory/_index.md` files on the filesystem with a SQLite database for indexing and full-text search.
 
-**Key Design Principle**: The core `folio_core` library is framework-agnostic (pure Rust) to enable reuse across different frontends (Tauri, mobile apps, etc.).
+**Key Design Principle**: The core `zinnia_core` library is framework-agnostic (pure Rust) to enable reuse across different frontends (Tauri, mobile apps, etc.).
 
 ## Workspace Structure
 
 This is a Cargo workspace with the following crates:
 
-- **`crates/core`** - Framework-agnostic core library (`folio_core` package)
+- **`crates/core`** - Framework-agnostic core library (`zinnia_core` package)
   - `notes.rs` - `NotesApi`: Core API orchestrating filesystem + database operations
   - `filesystem.rs` - `NoteFilesystem`: Low-level filesystem operations for `_index.md` files
   - `watcher.rs` - File system watcher using `notify` crate
   - `lib.rs` - Public exports
 
-- **`crates/frontend`** - Tauri application (`folio_frontend` package)
+- **`crates/frontend`** - Tauri application (`zinnia_frontend` package)
   - `src-tauri/` - Rust backend with Tauri commands
   - `src/` - SolidJS frontend with Milkdown editor
   - Uses Vite as build tool, Tailwind CSS for styling
@@ -32,21 +32,21 @@ This is a Cargo workspace with the following crates:
 cargo build
 
 # Build specific crate
-cargo build -p folio_core
-cargo build -p folio_frontend
+cargo build -p zinnia_core
+cargo build -p zinnia_frontend
 
 # Run all tests
 cargo test
 
 # Run tests for specific crate
-cargo test -p folio_core
+cargo test -p zinnia_core
 
 # Run specific test module
-cargo test -p folio_core notes::
-cargo test -p folio_core filesystem::
+cargo test -p zinnia_core notes::
+cargo test -p zinnia_core filesystem::
 
 # Run single test
-cargo test -p folio_core test_create_note
+cargo test -p zinnia_core test_create_note
 
 # Check compilation without building
 cargo check
@@ -181,19 +181,19 @@ When writing tests:
 - Read filesystem directly to verify file creation
 - Tests for `NoteFilesystem` only test filesystem operations
 
-### Using folio_core in Other Projects
+### Using zinnia_core in Other Projects
 
 To use the core library in a Tauri or other Rust project:
 
 ```toml
 [dependencies]
-folio_core = { path = "../path/to/folio/crates/core" }
+zinnia_core = { path = "../path/to/zinnia/crates/core" }
 ```
 
 Then import and use:
 
 ```rust
-use folio_core::{NotesApi, Note, Error};
+use zinnia_core::{NotesApi, Note, Error};
 
 fn main() -> Result<(), Error> {
     let mut api = NotesApi::new("/path/to/notes")?;

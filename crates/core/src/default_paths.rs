@@ -10,7 +10,7 @@ use std::path::PathBuf;
 ///   falls back to `~/Documents/notes`
 /// - **Windows**: Attempts OneDrive (`~/OneDrive/notes`),
 ///   falls back to `~/Documents/notes`
-/// - **Linux**: `~/.local/share/folio/notes`
+/// - **Linux**: `~/.local/share/zinnia/notes`
 ///
 /// # Arguments
 /// * `debug` - Whether the application is running in debug mode
@@ -122,7 +122,7 @@ fn get_onedrive_path() -> Option<PathBuf> {
 fn get_linux_path() -> Option<PathBuf> {
     // Use XDG data directory standard
     let mut path = dirs::data_local_dir()?;
-    path.push("folio");
+    path.push("zinnia");
     path.push("notes");
     Some(path)
 }
@@ -166,7 +166,7 @@ mod tests {
         let path = get_linux_path();
         assert!(path.is_some());
         let path_str = path.unwrap().to_string_lossy().to_string();
-        assert!(path_str.contains("folio"));
+        assert!(path_str.contains("zinnia"));
         assert!(path_str.contains("notes"));
     }
 }

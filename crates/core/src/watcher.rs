@@ -38,7 +38,7 @@ pub enum WatcherEvent {
 /// # Example
 ///
 /// ```no_run
-/// use folio_core::{NotesApi, setup_watcher, WatcherEvent};
+/// use zinnia_core::{NotesApi, setup_watcher, WatcherEvent};
 /// use std::sync::{Arc, Mutex};
 ///
 /// let api = NotesApi::new("/path/to/notes").unwrap();

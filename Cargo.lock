@@ -1062,33 +1062,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
-name = "folio_core"
-version = "0.2.3"
-dependencies = [
- "dirs 5.0.1",
- "notify",
- "rusqlite",
- "tempfile",
-]
-
-[[package]]
-name = "folio_frontend"
-version = "0.2.3"
-dependencies = [
- "dirs 6.0.0",
- "folio_core",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
-]
-
-[[package]]
 name = "foreign-types"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6075,6 +6048,33 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "zinnia_core"
+version = "0.3.0"
+dependencies = [
+ "dirs 5.0.1",
+ "notify",
+ "rusqlite",
+ "tempfile",
+]
+
+[[package]]
+name = "zinnia_frontend"
+version = "0.3.0"
+dependencies = [
+ "dirs 6.0.0",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "zinnia_core",
 ]
 
 [[package]]

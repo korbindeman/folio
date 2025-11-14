@@ -1,4 +1,4 @@
-# Folio
+# Zinnia
 
 A note-taking app designed to be bloat-free, robust, and "overzichtelijk"; a Dutch word meaning clear, organized, and easy to navigate.
 

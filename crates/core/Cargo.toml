@@ -1,5 +1,5 @@
 [package]
-name = "folio_core"
+name = "zinnia_core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

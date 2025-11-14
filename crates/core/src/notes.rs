@@ -113,12 +113,12 @@ impl NotesApi {
     ///
     /// # Example
     /// ```no_run
-    /// use folio_core::NotesApi;
+    /// use zinnia_core::NotesApi;
     ///
     /// let debug = cfg!(debug_assertions);
     /// let mut api = NotesApi::with_default_path(debug)?;
     /// api.startup_sync()?;
-    /// # Ok::<(), folio_core::Error>(())
+    /// # Ok::<(), zinnia_core::Error>(())
     /// ```
     pub fn with_default_path(debug: bool) -> Result<Self> {
         let notes_root = crate::default_paths::get_default_notes_path(debug).ok_or_else(|| {

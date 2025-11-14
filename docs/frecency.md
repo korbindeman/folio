@@ -2,7 +2,7 @@
 
 ## Overview
 
-Folio uses a **frecency algorithm** to intelligently sort notes in the navigation. Frecency combines **frequency** (how often you access a note) and **recency** (how recently you accessed it) to surface the most relevant notes at the top of lists.
+Zinnia uses a **frecency algorithm** to intelligently sort notes in the navigation. Frecency combines **frequency** (how often you access a note) and **recency** (how recently you accessed it) to surface the most relevant notes at the top of lists.
 
 This creates a self-organizing navigation system that adapts to your workflow over time, making frequently-used notes easily accessible while still giving recent notes a temporary boost.
 
@@ -56,17 +56,17 @@ This bubbles up frequently-accessed deep notes, making their parent directories 
 ```
 projects/
   rust/
-    folio/
+    zinnia/
       architecture.md  ← You access this note
 ```
 
 Frecency scores update for:
-- `projects/rust/folio/architecture.md`
-- `projects/rust/folio`
+- `projects/rust/zinnia/architecture.md`
+- `projects/rust/zinnia`
 - `projects/rust`
 - `projects`
 
-This means if you frequently work on notes within `projects/rust/folio`, that entire path becomes more prominent.
+This means if you frequently work on notes within `projects/rust/zinnia`, that entire path becomes more prominent.
 
 ## Database Schema
 
@@ -136,7 +136,7 @@ The navigation updates **immediately** when frecency scores change.
 
 ## Implementation Details
 
-### Core API (`folio_core`)
+### Core API (`zinnia_core`)
 
 **Key Methods:**
 
@@ -231,10 +231,10 @@ The frecency system includes comprehensive tests:
 
 ```bash
 # Run frecency-specific tests
-cargo test -p folio_core frecency
+cargo test -p zinnia_core frecency
 
 # All tests
-cargo test -p folio_core
+cargo test -p zinnia_core
 ```
 
 **Test Coverage:**
