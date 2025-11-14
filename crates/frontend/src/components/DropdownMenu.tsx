@@ -27,6 +27,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
   const notes = useNotes();
   const toast = useToast();
   const [showModal, setShowModal] = createSignal(false);
+  const [createAtPath, setCreateAtPath] = createSignal("");
   const [openPanels, setOpenPanels] = createSignal<PanelState[]>([]);
   const [childrenCache, setChildrenCache] = createSignal(
     new Map<string, NoteMetadata[]>(),
@@ -279,21 +280,23 @@ export function DropdownMenu(props: DropdownMenuProps) {
     }
   };
 
-  const handleCreateChild = async () => {
+  const handleCreateChild = async (parentPath: string) => {
+    setCreateAtPath(parentPath);
     setShowModal(true);
     dialogRef?.close();
     setOpenPanels([]);
   };
 
   const createNewNote = async (title: string) => {
-    const newPath = props.path ? `${props.path}/${title}` : title;
+    const basePath = createAtPath();
+    const newPath = basePath ? `${basePath}/${title}` : title;
     try {
       const newNote = await commands.createNote(newPath);
       setShowModal(false);
 
-      // Invalidate cache
+      // Invalidate cache for the parent where the note was created
       const cache = childrenCache();
-      cache.delete(props.path);
+      cache.delete(basePath);
       setChildrenCache(new Map(cache));
 
       notes.setCurrentPath(newNote.path);
