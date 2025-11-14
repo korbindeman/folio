@@ -245,10 +245,6 @@ export function DropdownMenu(props: DropdownMenuProps) {
 
       props.onRefresh?.();
 
-      // Close dialog and reset
-      dialogRef?.close();
-      setOpenPanels([]);
-
       toast.success("Note archived", {
         duration: "long",
         onUndo: async () => {
