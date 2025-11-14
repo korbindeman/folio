@@ -64,7 +64,7 @@ export function MenuPanel(props: MenuPanelProps) {
                 <span class="text-xs opacity-50 group-hover:hidden">›</span>
               )}
               <span
-                class="hover:text-red hidden cursor-pointer p-0.5 group-hover:inline-flex hover:opacity-80"
+                class="hover:text-red hidden -translate-x-0.5 cursor-pointer p-0.5 opacity-50 group-hover:inline-flex hover:opacity-80"
                 onClick={(e) => {
                   e.stopPropagation();
                   props.onArchiveItem(note);
