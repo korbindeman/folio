@@ -4,7 +4,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 export interface UpdateInfo {
   version: string;
   currentVersion: string;
-  date: string;
+  date?: string;
   body?: string;
   update: Update;
 }
@@ -14,11 +14,6 @@ export async function checkForUpdates(): Promise<UpdateInfo | null> {
     const update = await check();
 
     if (!update) {
-      console.log("Failed to check for updates");
-      return null;
-    }
-
-    if (!update.available) {
       console.log("App is up to date");
       return null;
     }
@@ -38,7 +33,10 @@ export async function checkForUpdates(): Promise<UpdateInfo | null> {
 
 export async function downloadAndInstallUpdate(
   update: Update,
-  onProgress?: (progress: { chunkLength: number; contentLength?: number }) => void,
+  onProgress?: (progress: {
+    chunkLength: number;
+    contentLength?: number;
+  }) => void,
 ): Promise<boolean> {
   try {
     await update.downloadAndInstall((event) => {
@@ -50,7 +48,7 @@ export async function downloadAndInstallUpdate(
           if (onProgress) {
             onProgress({
               chunkLength: event.data.chunkLength,
-              contentLength: event.data.contentLength,
+              contentLength: (event.data as any).contentLength,
             });
           }
           break;
