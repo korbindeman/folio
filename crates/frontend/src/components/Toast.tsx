@@ -127,6 +127,7 @@ export const ToastProvider: ParentComponent = (props) => {
                       Undo
                     </button>
                   </Show>
+
                   <Show when={toast.onAction && toast.actionLabel}>
                     <button
                       class="bg-accent text-text rounded px-3 py-1 text-sm font-medium hover:opacity-90"

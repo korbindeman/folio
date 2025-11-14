@@ -5,12 +5,37 @@ import EditorManager from "./components/EditorManager";
 import { ToastProvider, useToast } from "./components/Toast";
 import { checkForUpdates } from "./utils/updater";
 import { downloadAndInstallUpdate, restartApp } from "./utils/updater";
+import { getVersion } from "@tauri-apps/api/app";
+
+const LAST_VERSION_KEY = "lastAppVersion";
 
 function AppContent() {
   const isDev = import.meta.env.DEV;
   const toast = useToast();
 
   onMount(async () => {
+    const currentVersion = await getVersion();
+    const lastVersion = localStorage.getItem(LAST_VERSION_KEY);
+
+    // Check if app was just updated
+    if (lastVersion && lastVersion !== currentVersion) {
+      const releaseUrl = `https://github.com/korbindeman/folio/releases/tag/v${currentVersion}`;
+
+      const openReleaseNotes = async () => {
+        const opener = await import("@tauri-apps/plugin-opener");
+        await opener.openUrl(releaseUrl);
+      };
+
+      toast.success(`Updated to v${currentVersion}`, {
+        duration: "long",
+        actionLabel: "Release Notes",
+        onAction: openReleaseNotes,
+      });
+    }
+
+    // Store current version for next launch
+    localStorage.setItem(LAST_VERSION_KEY, currentVersion);
+
     // Check for updates on app startup (silent check)
     const update = await checkForUpdates();
     if (update) {
