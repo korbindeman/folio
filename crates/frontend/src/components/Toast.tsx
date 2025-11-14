@@ -94,7 +94,7 @@ export const ToastProvider: ParentComponent = (props) => {
       <div class="pointer-events-none fixed right-4 bottom-4 z-[200] flex flex-col gap-2">
         <For each={toasts()}>
           {(toast) => (
-            <div class="bg-paper animate-slide-in pointer-events-auto rounded-md border px-4 py-3 shadow-lg">
+            <div class="bg-paper pointer-events-auto rounded-md border px-4 py-3 shadow-lg">
               <div class="text-text flex items-center gap-3">
                 <span class="text-sm select-none">{toast.message}</span>
                 <div class="ml-auto flex items-center gap-2">
