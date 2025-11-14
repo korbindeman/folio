@@ -68,7 +68,7 @@ fn create_note(path: String, state: State<AppState>) -> Result<NoteDTO, String> 
 
 #[tauri::command]
 fn get_note(path: String, state: State<AppState>) -> Result<NoteDTO, String> {
-    let api = state.notes_api.lock().unwrap();
+    let mut api = state.notes_api.lock().unwrap();
     api.get_note(&path)
         .map(|note| note.into())
         .map_err(|e| format!("{:?}", e))
