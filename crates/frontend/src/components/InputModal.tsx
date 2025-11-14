@@ -1,4 +1,5 @@
 import { createSignal, Show, onMount, createEffect } from "solid-js";
+import { expandMacros } from "../utils/macros";
 
 export function InputModal(props: {
   showModal: boolean;
@@ -38,7 +39,8 @@ export function InputModal(props: {
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    props.onSubmit(value());
+    const expandedValue = expandMacros(value());
+    props.onSubmit(expandedValue);
     setValue("");
   };
 
