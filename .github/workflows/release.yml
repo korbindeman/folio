@@ -10,16 +10,27 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
+      packages: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS Intel
-          - platform: "macos-latest"
-            args: "--target x86_64-apple-darwin"
           # macOS Apple Silicon
           - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
+
+          # macOS Intel
+          # - platform: "macos-latest"
+          #   args: "--target x86_64-apple-darwin"
+
+          # Linux (TODO: enable when ready)
+          # - platform: "ubuntu-latest"
+          #   args: "--target x86_64-unknown-linux-gnu"
+
+          # Windows (TODO: enable when ready)
+          # - platform: "windows-latest"
+          #   args: "--target x86_64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
 
@@ -41,7 +52,12 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "./crates/frontend/src-tauri -> target"
+          # Cache the entire workspace
+          workspaces: "."
+          # Include target in cache key for cross-compilation
+          key: ${{ matrix.platform }}-${{ matrix.args }}
+          # Save cache even if build fails
+          save-if: true
 
       - name: Install frontend dependencies
         working-directory: crates/frontend
