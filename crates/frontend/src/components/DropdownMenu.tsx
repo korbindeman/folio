@@ -1,4 +1,4 @@
-import { createSignal, For, JSX, onMount, onCleanup } from "solid-js";
+import { createSignal, For, JSX, onMount, onCleanup, Show } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { useNotes } from "../api";
 import { commands } from "../api/commands";
@@ -6,6 +6,8 @@ import { InputModal } from "./InputModal";
 import { MenuPanel } from "./MenuPanel";
 import { useToast } from "./Toast";
 import type { NoteMetadata } from "../types";
+import type { MenuItem } from "./ContextMenu";
+import { ContextMenuContainer } from "./ContextMenu";
 
 interface PanelState {
   parentPath: string;
@@ -35,6 +37,12 @@ export function DropdownMenu(props: DropdownMenuProps) {
   const [hasChildrenMap, setHasChildrenMap] = createSignal<
     Record<string, boolean>
   >({});
+  const [contextMenu, setContextMenu] = createSignal<{
+    items: MenuItem[];
+    x: number;
+    y: number;
+    notePath: string;
+  } | null>(null);
 
   // Listen for frecency updates and clear cache
   onMount(async () => {
@@ -283,6 +291,25 @@ export function DropdownMenu(props: DropdownMenuProps) {
     setOpenPanels([]);
   };
 
+  const handleContextMenu = (
+    e: MouseEvent,
+    note: NoteMetadata,
+    items: MenuItem[],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      items,
+      x: e.clientX,
+      y: e.clientY,
+      notePath: note.path,
+    });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu(null);
+  };
+
   const createNewNote = async (title: string) => {
     const basePath = createAtPath();
     const newPath = basePath ? `${basePath}/${title}` : title;
@@ -315,6 +342,12 @@ export function DropdownMenu(props: DropdownMenuProps) {
         ref={buttonRef}
         class="hover:bg-button-hover rounded px-0.5 font-mono"
         onClick={handleClick}
+        onMouseDown={(e) => {
+          // Close context menu when clicking outside
+          if (contextMenu()) {
+            handleCloseContextMenu();
+          }
+        }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -332,7 +365,15 @@ export function DropdownMenu(props: DropdownMenuProps) {
       <dialog
         ref={dialogRef}
         class="relative overflow-visible border-none bg-transparent p-0 outline-none backdrop:bg-transparent"
-        onClick={handleDialogClick}
+        onClick={(e) => {
+          handleDialogClick(e);
+          handleCloseContextMenu();
+        }}
+        onMouseDown={(e) => {
+          if (contextMenu() && e.target === dialogRef) {
+            handleCloseContextMenu();
+          }
+        }}
       >
         <For each={openPanels()}>
           {(panel, index) => (
@@ -349,9 +390,26 @@ export function DropdownMenu(props: DropdownMenuProps) {
               onCreateChild={handleCreateChild}
               setPanelRef={setPanelRef}
               setRowRef={setRowRef}
+              onContextMenu={handleContextMenu}
+              contextMenuNotePath={contextMenu()?.notePath}
             />
           )}
         </For>
+        <Show when={contextMenu()}>
+          {(menu) => (
+            <ContextMenuContainer
+              x={menu().x}
+              y={menu().y}
+              items={menu().items}
+              onItemClick={(item) => {
+                if (!item.disabled) {
+                  item.onClick();
+                  handleCloseContextMenu();
+                }
+              }}
+            />
+          )}
+        </Show>
       </dialog>
     </>
   );

@@ -19,6 +19,8 @@
   --color-selection: #d6e7ff;
   --color-button-bg: #f2efe6;
   --color-button-hover: #e5e2d9;
+  --color-context-menu-bg: #faf8f2;
+  --color-context-menu-border: #e8e5dd;
   --color-red: #dc2626;
 }
 
@@ -26,14 +28,16 @@
   /* Dark theme */
   @media (prefers-color-scheme: dark) {
     :root {
-      --color-background: #1a1a18;
-      --color-paper: #252524;
-      --color-text: #d0d2cc;
-      --color-text-muted: #a8aaa4;
-      --color-border: #3a3c38;
+      --color-background: #1a1a1a;
+      --color-paper: #242424;
+      --color-text: #d0d0d0;
+      --color-text-muted: #a8a8a8;
+      --color-border: #393939;
       --color-selection: #4a6b8a;
-      --color-button-bg: #2e302c;
-      --color-button-hover: #252722;
+      --color-button-bg: #2d2d2d;
+      --color-button-hover: #353535;
+      --color-context-menu-bg: #1f1f1f;
+      --color-context-menu-border: #2a2a2a;
       --color-red: #ef4444;
     }
   }

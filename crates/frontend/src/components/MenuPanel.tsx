@@ -1,6 +1,7 @@
 import { For } from "solid-js";
 import { getPathTitle } from "../utils/paths";
 import type { NoteMetadata } from "../types";
+import type { MenuItem } from "./ContextMenu";
 
 const MAX_TITLE_LENGTH = 18;
 
@@ -21,12 +22,14 @@ interface MenuPanelProps {
   top: number;
   level: number;
   hasChildrenMap?: Record<string, boolean>;
+  contextMenuNotePath?: string;
 
   // Callbacks
   onHoverItem: (level: number, item: NoteMetadata) => void;
   onClickItem: (item: NoteMetadata) => void;
   onArchiveItem: (item: NoteMetadata) => void;
   onCreateChild: (parentPath: string) => void;
+  onContextMenu: (e: MouseEvent, note: NoteMetadata, items: MenuItem[]) => void;
 
   // Ref callbacks for positioning
   setPanelRef: (level: number, el: HTMLDivElement | undefined) => void;
@@ -46,35 +49,67 @@ export function MenuPanel(props: MenuPanelProps) {
       data-level={props.level}
     >
       <For each={props.items}>
-        {(note) => (
-          <div
-            class="group flex items-center"
-            onMouseEnter={() => props.onHoverItem(props.level, note)}
-          >
-            <button
-              ref={(el) => props.setRowRef(note.path, el)}
-              onClick={() => props.onClickItem(note)}
-              class="px-2 py-1.5 pr-0 text-left whitespace-nowrap outline-none select-none hover:underline"
-              title={getPathTitle(note.path)}
-            >
-              {truncateTitle(getPathTitle(note.path))}
-            </button>
-            <span class="relative ml-1 inline-flex w-2 items-center">
-              {props.hasChildrenMap?.[note.path] && (
-                <span class="text-xs opacity-50 group-hover:hidden">›</span>
-              )}
-              <span
-                class="hover:text-red hidden -translate-x-0.5 cursor-pointer p-0.5 opacity-50 group-hover:inline-flex hover:opacity-80"
-                onClick={(e) => {
-                  e.stopPropagation();
+        {(note) => {
+          const getContextMenuItems = (): MenuItem[] => {
+            return [
+              {
+                label: "Move",
+                onClick: () => {
+                  console.log("Move note:", note.path);
+                },
+              },
+              { separator: true },
+              {
+                label: "Archive",
+                onClick: () => {
                   props.onArchiveItem(note);
+                },
+              },
+              {
+                label: "Trash",
+                onClick: () => {
+                  console.log("Trash note:", note.path);
+                },
+              },
+            ];
+          };
+
+          return (
+            <div
+              class="group flex items-center"
+              onMouseEnter={() => props.onHoverItem(props.level, note)}
+              onContextMenu={(e) =>
+                props.onContextMenu(e, note, getContextMenuItems())
+              }
+            >
+              <button
+                ref={(el) => props.setRowRef(note.path, el)}
+                onClick={() => props.onClickItem(note)}
+                class="px-2 py-1.5 pr-0 text-left whitespace-nowrap outline-none select-none hover:underline"
+                classList={{
+                  underline: props.contextMenuNotePath === note.path,
                 }}
+                title={getPathTitle(note.path)}
               >
-                ×
+                {truncateTitle(getPathTitle(note.path))}
+              </button>
+              <span class="relative ml-1 inline-flex w-2 items-center">
+                {props.hasChildrenMap?.[note.path] && (
+                  <span class="text-xs opacity-50 group-hover:hidden">›</span>
+                )}
+                <span
+                  class="hover:text-red hidden -translate-x-0.5 cursor-pointer p-0.5 opacity-50 group-hover:inline-flex hover:opacity-80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onArchiveItem(note);
+                  }}
+                >
+                  ×
+                </span>
               </span>
-            </span>
-          </div>
-        )}
+            </div>
+          );
+        }}
       </For>
       <button
         onClick={() => props.onCreateChild(props.parentPath)}
