@@ -135,10 +135,11 @@ fn get_all_notes(state: State<AppState>) -> Result<Vec<NoteMetadataDTO>, String>
 #[tauri::command]
 fn fuzzy_search_notes(
     query: String,
+    limit: Option<usize>,
     state: State<AppState>,
 ) -> Result<Vec<NoteMetadataDTO>, String> {
     let api = state.notes_api.lock().unwrap();
-    api.fuzzy_search(&query)
+    api.fuzzy_search(&query, limit)
         .map(|results| results.into_iter().map(|r| r.into()).collect())
         .map_err(|e| format!("{:?}", e))
 }

@@ -28,13 +28,13 @@ export function NoteFinder(props: {
     }
   });
 
-  // Fuzzy search as user types, or show all notes if empty
+  // Fuzzy search as user types, or show top 6 notes if empty
   createEffect(async () => {
     const searchQuery = query();
 
     setIsLoading(true);
     try {
-      const searchResults = await commands.fuzzySearchNotes(searchQuery);
+      const searchResults = await commands.fuzzySearchNotes(searchQuery, 6);
       setResults(searchResults);
       setSelectedIndex(0);
     } catch (err) {
@@ -111,18 +111,18 @@ export function NoteFinder(props: {
   return (
     <Show when={props.showModal}>
       <div
-        class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+        class="bg-opacity-50 fixed inset-0 z-50 flex items-start justify-center bg-black pt-32"
         onClick={handleBackdropClick}
       >
         <div
-          class="bg-button-bg w-[600px] rounded border"
+          class="bg-paper text-text-muted w-[400px] rounded-md border outline-none"
           onClick={(e) => e.stopPropagation()}
         >
-          <div class="border-b p-4">
+          <div class="border-b px-2.5 py-1 pr-4">
             <input
               ref={inputRef}
               type="text"
-              class="text-text w-full bg-transparent outline-none"
+              class="w-full bg-transparent px-2 py-1.5 outline-none"
               placeholder={props.placeholder || "Search notes..."}
               value={query()}
               onInput={(e) => setQuery(e.currentTarget.value)}
@@ -130,32 +130,48 @@ export function NoteFinder(props: {
               autofocus
             />
           </div>
-          <div ref={resultsContainerRef} class="max-h-[400px] overflow-y-auto">
+          <div
+            ref={resultsContainerRef}
+            class="max-h-[400px] overflow-y-auto px-2.5 py-1 pr-1"
+            onMouseLeave={() => setSelectedIndex(0)}
+          >
             <Show when={isLoading()}>
-              <div class="text-text-muted p-4 text-sm">
+              <div class="px-2 py-1.5 text-sm opacity-60">
                 {query().trim() ? "Searching..." : "Loading notes..."}
               </div>
             </Show>
             <Show when={!isLoading() && results().length === 0}>
-              <div class="text-text-muted p-4 text-sm">
+              <div class="px-2 py-1.5 text-sm opacity-60">
                 {query().trim() ? "No results found" : "No notes available"}
               </div>
             </Show>
             <For each={results()}>
-              {(note, index) => (
-                <div
-                  class={`text-text cursor-pointer border-b p-3 transition-colors ${
-                    index() === selectedIndex() ? "bg-hover" : "hover:bg-hover"
-                  }`}
-                  onClick={() => handleResultClick(note)}
-                  onMouseEnter={() => setSelectedIndex(index())}
-                >
-                  <div class="font-medium">{note.path || "(root)"}</div>
-                  <div class="text-text-muted text-xs">
-                    {new Date(note.modified * 1000).toLocaleDateString()}
-                  </div>
-                </div>
-              )}
+              {(note, index) => {
+                const path = note.path || "(root)";
+                const lastSlashIndex = path.lastIndexOf("/");
+                const hasParent = lastSlashIndex !== -1;
+                const parentPath = hasParent
+                  ? path.substring(0, lastSlashIndex + 1)
+                  : "";
+                const noteName = hasParent
+                  ? path.substring(lastSlashIndex + 1)
+                  : path;
+
+                return (
+                  <button
+                    class="w-full px-2 py-1.5 text-left whitespace-nowrap outline-none select-none hover:underline"
+                    classList={{
+                      underline: index() === selectedIndex(),
+                    }}
+                    onClick={() => handleResultClick(note)}
+                    onMouseEnter={() => setSelectedIndex(index())}
+                    title={path}
+                  >
+                    {hasParent && <span class="opacity-50">{parentPath}</span>}
+                    {noteName}
+                  </button>
+                );
+              }}
             </For>
           </div>
         </div>

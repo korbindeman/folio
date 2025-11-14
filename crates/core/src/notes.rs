@@ -687,15 +687,42 @@ impl NotesApi {
     /// 3. Alphabetical order as final tiebreaker
     ///
     /// Designed for interactive note pickers where users type partial titles.
-    pub fn fuzzy_search(&self, query: &str) -> Result<Vec<NoteMetadata>> {
+    pub fn fuzzy_search(&self, query: &str, limit: Option<usize>) -> Result<Vec<NoteMetadata>> {
         if query.is_empty() {
-            return self.get_all_notes();
+            // Return top notes by frecency when no query provided
+            let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+            let sql = format!(
+                "SELECT id, path, mtime, archived
+                 FROM notes
+                 WHERE archived = 0
+                 ORDER BY frecency_score DESC
+                 {}",
+                limit_clause
+            );
+
+            let mut stmt = self.db.prepare(&sql)?;
+
+            let results = stmt
+                .query_map([], |row| {
+                    let mtime: i64 = row.get(2)?;
+                    let modified = UNIX_EPOCH + std::time::Duration::from_secs(mtime as u64);
+                    Ok(NoteMetadata {
+                        id: row.get(0)?,
+                        path: row.get(1)?,
+                        modified,
+                        archived: row.get::<_, i64>(3)? != 0,
+                    })
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+
+            return Ok(results);
         }
 
         // Use LIKE for substring matching, with % wildcards
         let pattern = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
 
-        let mut stmt = self.db.prepare(
+        let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
+        let sql = format!(
             "SELECT id, path, mtime, archived,
                     CASE
                         WHEN LOWER(path) LIKE LOWER(?1) THEN 1
@@ -704,8 +731,12 @@ impl NotesApi {
                     END as match_priority
              FROM notes
              WHERE archived = 0 AND LOWER(path) LIKE LOWER(?2)
-             ORDER BY match_priority ASC, frecency_score DESC, path ASC",
-        )?;
+             ORDER BY match_priority ASC, frecency_score DESC, path ASC
+             {}",
+            limit_clause
+        );
+
+        let mut stmt = self.db.prepare(&sql)?;
 
         // ?1 = prefix pattern (query%), ?2 = substring pattern (%query%)
         let prefix_pattern = format!("{}%", query.replace('%', "\\%").replace('_', "\\_"));
