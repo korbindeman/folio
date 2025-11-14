@@ -130,7 +130,7 @@ export const ToastProvider: ParentComponent = (props) => {
 
                   <Show when={toast.onAction && toast.actionLabel}>
                     <button
-                      class="bg-accent text-text rounded px-3 py-1 text-sm font-medium hover:opacity-90"
+                      class="bg-accent text-text rounded px-3 py-1 text-sm font-medium hover:underline hover:opacity-90"
                       onClick={() => {
                         toast.onAction?.();
                         removeToast(toast.id);
