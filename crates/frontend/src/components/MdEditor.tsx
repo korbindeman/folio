@@ -9,7 +9,7 @@ import { useNoteContent, useAutoSave } from "../api";
 import { NoteContent } from "../api/hooks";
 import "./MdEditor.css";
 
-const AUTOSAVE_DELAY = 1000;
+const AUTOSAVE_DELAY = 400;
 
 function MdEditor({ path, content }: { path: string; content: NoteContent }) {
   const [pathSignal, _] = createSignal(path);
@@ -54,10 +54,10 @@ function MdEditor({ path, content }: { path: string; content: NoteContent }) {
     <>
       <div ref={ref!} class="flex w-full flex-col" />
 
-      <div class="text-text-muted pointer-events-none fixed bottom-2 left-2 text-xs opacity-40">
+      {/*<div class="text-text-muted pointer-events-none fixed bottom-2 left-2 text-xs opacity-40">
         {(autoSave.isSaving() && "Saving...") ||
           (autoSave.hasUnsavedChanges() && "Unsaved changes")}
-      </div>
+      </div>*/}
     </>
   );
 }
