@@ -3,10 +3,12 @@ import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { getPathTitle } from "../utils/paths";
 import { DropdownMenu } from "./DropdownMenu";
+import { useToast } from "./Toast";
 import type { NoteMetadata } from "../types";
 
 function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
   const notes = useNotes();
+  const toast = useToast();
   const [children, setChildren] = createSignal<NoteMetadata[]>([]);
   const [refreshKey, setRefreshKey] = createSignal(0);
   const [isEditing, setIsEditing] = createSignal(false);
@@ -25,7 +27,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
       setRefreshKey((k) => k + 1);
     } catch (err) {
       console.error("Failed to create note:", err);
-      alert(`Failed to create note: ${err}`);
+      toast.error(`Failed to create note: ${err}`);
     }
   };
 
@@ -56,7 +58,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
         notes.setCurrentPath(newPath);
       } catch (err) {
         console.error("Failed to rename:", err);
-        alert(`Failed to rename: ${err}`);
+        toast.error(`Failed to rename: ${err}`);
       }
     }
     setIsEditing(false);

@@ -1,23 +1,26 @@
 import { NotesProvider } from "./api";
 import { Navigation } from "./components/Navigation";
 import EditorManager from "./components/EditorManager";
+import { ToastProvider } from "./components/Toast";
 
 function App() {
   const isDev = import.meta.env.DEV;
 
   return (
     <NotesProvider>
-      <div class="flex h-screen flex-col pt-0">
-        <Navigation />
-        <div class="mt-8 flex flex-1">
-          <EditorManager />
-        </div>
-        {isDev && (
-          <div class="fixed right-2 bottom-2 z-50 text-xs font-bold opacity-30">
-            DEV
+      <ToastProvider>
+        <div class="flex h-screen flex-col pt-0">
+          <Navigation />
+          <div class="mt-8 flex flex-1">
+            <EditorManager />
           </div>
-        )}
-      </div>
+          {isDev && (
+            <div class="fixed right-2 bottom-2 z-50 text-xs font-bold opacity-30">
+              DEV
+            </div>
+          )}
+        </div>
+      </ToastProvider>
     </NotesProvider>
   );
 }

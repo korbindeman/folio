@@ -43,7 +43,11 @@ export function MenuPanel(props: MenuPanelProps) {
     <div
       ref={(el) => props.setPanelRef(props.level, el)}
       class="bg-paper text-text-muted absolute max-w-[200px] min-w-[160px] rounded-md border px-2.5 py-1 outline-none"
-      style={{ left: `${props.left}px`, top: `${props.top}px` }}
+      style={{
+        left: `${props.left}px`,
+        top: `${props.top}px`,
+        "z-index": `${100 + props.level}`,
+      }}
       data-level={props.level}
     >
       <For each={sortedContent()}>

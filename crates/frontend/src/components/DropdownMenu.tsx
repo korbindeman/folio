@@ -3,6 +3,7 @@ import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { InputModal } from "./InputModal";
 import { MenuPanel } from "./MenuPanel";
+import { useToast } from "./Toast";
 import type { NoteMetadata } from "../types";
 
 interface PanelState {
@@ -23,6 +24,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
   let dialogRef: HTMLDialogElement | undefined;
 
   const notes = useNotes();
+  const toast = useToast();
   const [showModal, setShowModal] = createSignal(false);
   const [openPanels, setOpenPanels] = createSignal<PanelState[]>([]);
   const [childrenCache, setChildrenCache] = createSignal(
@@ -198,23 +200,32 @@ export function DropdownMenu(props: DropdownMenuProps) {
   };
 
   const handleArchiveItem = async (item: NoteMetadata) => {
+    const itemPath = item.path;
+    const wasCurrentNote = notes.currentPath() === itemPath;
+    const parentPath = itemPath.split("/").slice(0, -1).join("/");
+
+    // Calculate archived path for undo
+    const archivedPath = parentPath
+      ? `${parentPath}/_archive/${itemPath.split("/").pop()}`
+      : `_archive/${itemPath}`;
+
     try {
-      await commands.archiveNote(item.path);
-      if (notes.currentPath() === item.path) {
-        const segments = item.path.split("/");
+      await commands.archiveNote(itemPath);
+
+      if (wasCurrentNote) {
+        const segments = itemPath.split("/");
         segments.pop();
         notes.setCurrentPath(segments.join("/"));
       }
 
       // Invalidate cache for parent
-      const parentPath = item.path.split("/").slice(0, -1).join("/");
       const cache = childrenCache();
       cache.delete(parentPath);
       setChildrenCache(new Map(cache));
 
       // Clear hasChildren for this item
       const map = { ...hasChildrenMap() };
-      delete map[item.path];
+      delete map[itemPath];
       setHasChildrenMap(map);
 
       props.onRefresh?.();
@@ -222,9 +233,35 @@ export function DropdownMenu(props: DropdownMenuProps) {
       // Close dialog and reset
       dialogRef?.close();
       setOpenPanels([]);
+
+      toast.success("Note archived", {
+        duration: "long",
+        onUndo: async () => {
+          try {
+            await commands.unarchiveNote(archivedPath);
+
+            // Invalidate cache to refresh
+            const cache = childrenCache();
+            cache.delete(parentPath);
+            setChildrenCache(new Map(cache));
+
+            props.onRefresh?.();
+
+            // Restore as current note if it was current before
+            if (wasCurrentNote) {
+              notes.setCurrentPath(itemPath);
+            }
+
+            toast.success("Note restored", { duration: "short" });
+          } catch (err) {
+            console.error("Failed to unarchive:", err);
+            toast.error(`Failed to undo: ${err}`);
+          }
+        },
+      });
     } catch (err) {
       console.error("Failed to archive:", err);
-      alert(`Failed to archive: ${err}`);
+      toast.error(`Failed to archive: ${err}`);
     }
   };
 
@@ -249,7 +286,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
       props.onRefresh?.();
     } catch (err) {
       console.error("Failed to create note:", err);
-      alert(`Failed to create note: ${err}`);
+      toast.error(`Failed to create note: ${err}`);
     }
   };
 
