@@ -1,11 +1,11 @@
 [package]
 name = "folio_frontend"
-version = "0.1.0"
+version.workspace = true
 description = "A Tauri App"
-authors = ["Korbin de Man"]
-license = "MIT"
-repository = "https://github.com/korbindeman/folio"
-edition = "2024"
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,7 +23,12 @@ tauri-build = { version = "2", features = [] }
 folio_core = { path = "../../core" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = "2"
 dirs = "6.0.0"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

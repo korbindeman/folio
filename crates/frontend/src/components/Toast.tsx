@@ -7,26 +7,33 @@ import {
   Show,
 } from "solid-js";
 
-type ToastType = "success" | "error" | "info";
-type ToastDuration = "short" | "long";
+type ToastType = "success" | "error" | "info" | "update";
+type ToastDuration = "short" | "long" | "persistent";
 
 interface Toast {
   id: number;
   message: string;
   type: ToastType;
   onUndo?: () => void;
+  onAction?: () => void;
+  actionLabel?: string;
   duration: number;
+  persistent?: boolean;
 }
 
 interface ToastOptions {
   onUndo?: () => void;
+  onAction?: () => void;
+  actionLabel?: string;
   duration?: ToastDuration;
+  persistent?: boolean;
 }
 
 interface ToastContextValue {
   success: (message: string, options?: ToastOptions) => void;
   error: (message: string, options?: ToastOptions) => void;
   info: (message: string, options?: ToastOptions) => void;
+  update: (message: string, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>();
@@ -44,6 +51,7 @@ let toastId = 0;
 const DURATION_MS = {
   short: 2000,
   long: 5000,
+  persistent: Infinity,
 };
 
 export const ToastProvider: ParentComponent = (props) => {
@@ -59,13 +67,24 @@ export const ToastProvider: ParentComponent = (props) => {
 
     setToasts((prev) => [
       ...prev,
-      { id, message, type, onUndo: options?.onUndo, duration },
+      {
+        id,
+        message,
+        type,
+        onUndo: options?.onUndo,
+        onAction: options?.onAction,
+        actionLabel: options?.actionLabel,
+        duration,
+        persistent: options?.persistent || duration === Infinity,
+      },
     ]);
 
-    // Auto-remove after duration
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
+    // Auto-remove after duration (unless persistent)
+    if (duration !== Infinity) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    }
   };
 
   const removeToast = (id: number) => {
@@ -86,6 +105,8 @@ export const ToastProvider: ParentComponent = (props) => {
       addToast(message, "error", options),
     info: (message: string, options?: ToastOptions) =>
       addToast(message, "info", options),
+    update: (message: string, options?: ToastOptions) =>
+      addToast(message, "update", options),
   };
 
   return (
@@ -104,6 +125,17 @@ export const ToastProvider: ParentComponent = (props) => {
                       onClick={() => handleUndo(toast)}
                     >
                       Undo
+                    </button>
+                  </Show>
+                  <Show when={toast.onAction && toast.actionLabel}>
+                    <button
+                      class="bg-accent text-text rounded px-3 py-1 text-sm font-medium hover:opacity-90"
+                      onClick={() => {
+                        toast.onAction?.();
+                        removeToast(toast.id);
+                      }}
+                    >
+                      {toast.actionLabel}
                     </button>
                   </Show>
                   <button

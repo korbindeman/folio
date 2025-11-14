@@ -1,10 +1,10 @@
 [package]
 name = "folio_core"
-version = "0.1.0"
-edition = "2024"
-authors = ["Korbin de Man"]
-license = "MIT"
-repository = "https://github.com/korbindeman/folio"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }

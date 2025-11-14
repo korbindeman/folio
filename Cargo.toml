@@ -4,3 +4,10 @@ members = [
     "crates/core",
     "crates/frontend/src-tauri",
 ]
+
+[workspace.package]
+version = "0.2.0"
+authors = ["Korbin de Man"]
+license = "MIT"
+repository = "https://github.com/korbindeman/folio"
+edition = "2024"
