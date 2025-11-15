@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
-use zinnia_core::{Note, NoteMetadata, NotesApi, WatcherEvent, setup_watcher};
+use zinnia_core::{
+    Note, NoteMetadata, NotesApi, WatcherEvent, migrate_legacy_notes_path, setup_watcher,
+};
 
 // Application state holding the NotesApi instance
 pub struct AppState {
@@ -172,6 +174,15 @@ fn trash_note(path: String, state: State<AppState>) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Attempt to migrate from legacy notes path (pre-0.4.0)
+    match migrate_legacy_notes_path(cfg!(debug_assertions)) {
+        Ok(true) => println!("Successfully migrated notes from legacy path to Zinnia"),
+        Ok(false) => {
+            // Migration not needed - either legacy doesn't exist or new path already exists
+        }
+        Err(e) => eprintln!("Warning: Failed to migrate notes: {:?}", e),
+    }
+
     let mut api =
         NotesApi::with_default_path(cfg!(debug_assertions)).expect("Failed to initialize NotesApi");
     api.startup_sync().expect("Failed to sync notes database");
