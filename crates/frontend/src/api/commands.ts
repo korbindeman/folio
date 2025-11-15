@@ -36,4 +36,6 @@ export const commands = {
   archiveNote: (path: string) => invoke<void>("archive_note", { path }),
 
   unarchiveNote: (path: string) => invoke<void>("unarchive_note", { path }),
+
+  trashNote: (path: string) => invoke<void>("trash_note", { path }),
 };

@@ -268,6 +268,28 @@ impl NotesApi {
         Ok(())
     }
 
+    /// Moves a note and all its descendants to the system trash/recycle bin.
+    ///
+    /// Sends the note directory to the OS trash (Trash on macOS, Recycle Bin on Windows).
+    /// Also removes all associated entries from the database.
+    /// The note can be restored from the system trash using OS file recovery.
+    pub fn trash_note(&mut self, path: &str) -> Result<()> {
+        let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
+
+        // Move to trash (recursive - entire directory)
+        self.fs
+            .trash_note(path)
+            .map_err(|_| Error::NotFound(path.to_string()))?;
+
+        // Delete from database (note and all descendants)
+        self.db.execute(
+            "DELETE FROM notes WHERE path = ?1 OR path LIKE ?2",
+            params![path, format!("{}/%", path)],
+        )?;
+
+        Ok(())
+    }
+
     /// Renames a note and updates all descendant paths.
     ///
     /// Moves the note in filesystem and updates database paths for the note and all children.
@@ -1272,6 +1294,50 @@ mod tests {
 
         assert!(!api.note_exists("parent").unwrap());
         assert!(!api.note_exists("parent/child").unwrap());
+    }
+
+    #[test]
+    fn test_trash_note() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("test").unwrap();
+        api.save_note("test", "Content to trash").unwrap();
+
+        // Verify note exists before trashing
+        assert!(api.note_exists("test").unwrap());
+
+        // Move to trash
+        api.trash_note("test").unwrap();
+
+        // Note should no longer exist in database
+        assert!(!api.note_exists("test").unwrap());
+
+        // Note directory should no longer exist in filesystem
+        let note_dir = temp_dir.path().join("test");
+        assert!(!note_dir.exists());
+    }
+
+    #[test]
+    fn test_trash_note_with_children() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut api = NotesApi::new(temp_dir.path()).unwrap();
+
+        api.create_note("parent").unwrap();
+        api.create_note("parent/child").unwrap();
+        api.save_note("parent", "Parent content").unwrap();
+        api.save_note("parent/child", "Child content").unwrap();
+
+        // Move parent to trash (should include children)
+        api.trash_note("parent").unwrap();
+
+        // Both parent and child should be removed from database
+        assert!(!api.note_exists("parent").unwrap());
+        assert!(!api.note_exists("parent/child").unwrap());
+
+        // Parent directory should no longer exist in filesystem
+        let parent_dir = temp_dir.path().join("parent");
+        assert!(!parent_dir.exists());
     }
 
     #[test]

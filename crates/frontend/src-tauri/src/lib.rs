@@ -164,6 +164,12 @@ fn unarchive_note(path: String, state: State<AppState>) -> Result<(), String> {
     api.unarchive_note(&path).map_err(|e| format!("{:?}", e))
 }
 
+#[tauri::command]
+fn trash_note(path: String, state: State<AppState>) -> Result<(), String> {
+    let mut api = state.notes_api.lock().unwrap();
+    api.trash_note(&path).map_err(|e| format!("{:?}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut api =
@@ -198,6 +204,7 @@ pub fn run() {
             search_notes,
             archive_note,
             unarchive_note,
+            trash_note,
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();

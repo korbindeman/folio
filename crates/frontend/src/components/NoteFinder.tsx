@@ -7,6 +7,7 @@ export function NoteFinder(props: {
   onSelect: (note: NoteMetadata) => void;
   onClose?: () => void;
   placeholder?: string;
+  excludePath?: string | null;
 }) {
   const [query, setQuery] = createSignal("");
   const [results, setResults] = createSignal<NoteMetadata[]>([]);
@@ -35,7 +36,11 @@ export function NoteFinder(props: {
     setIsLoading(true);
     try {
       const searchResults = await commands.fuzzySearchNotes(searchQuery, 6);
-      setResults(searchResults);
+      // Filter out the excluded note if provided
+      const filtered = props.excludePath
+        ? searchResults.filter((note) => note.path !== props.excludePath)
+        : searchResults;
+      setResults(filtered);
       setSelectedIndex(0);
     } catch (err) {
       console.error("Search failed:", err);

@@ -69,6 +69,22 @@ impl NoteFilesystem {
         fs::remove_dir_all(dir_path)
     }
 
+    pub fn trash_note(&self, path: &str) -> io::Result<()> {
+        let dir_path = self.root_path.join(path);
+        if !dir_path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Note does not exist",
+            ));
+        }
+        trash::delete(&dir_path).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!("Failed to move note to trash: {}", e),
+            )
+        })
+    }
+
     pub fn scan_all(&self) -> io::Result<Vec<FSNoteMetadata>> {
         let mut notes = Vec::new();
         self.scan_dir(&self.root_path, "", &mut notes)?;

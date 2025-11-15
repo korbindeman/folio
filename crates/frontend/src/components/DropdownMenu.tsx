@@ -287,6 +287,39 @@ export function DropdownMenu(props: DropdownMenuProps) {
     }
   };
 
+  const handleTrashItem = async (item: NoteMetadata) => {
+    const itemPath = item.path;
+    const wasCurrentNote = notes.currentPath() === itemPath;
+    const parentPath = itemPath.split("/").slice(0, -1).join("/");
+
+    try {
+      await commands.trashNote(itemPath);
+
+      if (wasCurrentNote) {
+        const segments = itemPath.split("/");
+        segments.pop();
+        notes.setCurrentPath(segments.join("/"));
+      }
+
+      // Invalidate cache for parent
+      const cache = childrenCache();
+      cache.delete(parentPath);
+      setChildrenCache(new Map(cache));
+
+      // Clear hasChildren for this item
+      const map = { ...hasChildrenMap() };
+      delete map[itemPath];
+      setHasChildrenMap(map);
+
+      props.onRefresh?.();
+
+      toast.success("Note moved to trash", { duration: "short" });
+    } catch (err) {
+      console.error("Failed to trash note:", err);
+      toast.error(`Failed to trash: ${err}`);
+    }
+  };
+
   const handleCreateChild = async (parentPath: string) => {
     setCreateAtPath(parentPath);
     setShowModal(true);
@@ -327,7 +360,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
       {
         label: "Trash",
         onClick: () => {
-          console.log("Trash note:", note.path);
+          handleTrashItem(note);
         },
       },
     ];
@@ -424,6 +457,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
         onSelect={handleMoveToDestination}
         onClose={() => setShowNoteFinder(false)}
         placeholder="Move to..."
+        excludePath={noteToMove()}
       />
       <button
         ref={buttonRef}
