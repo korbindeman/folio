@@ -66,7 +66,6 @@ export function MenuPanel(props: MenuPanelProps) {
                 classList={{
                   underline: props.contextMenuNotePath === note.path,
                 }}
-                title={getPathTitle(note.path)}
               >
                 {truncateTitle(getPathTitle(note.path))}
               </button>
