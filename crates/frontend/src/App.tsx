@@ -45,7 +45,7 @@ function AppContent() {
       };
 
       toast.success(`Updated to v${currentVersion}`, {
-        duration: "long",
+        duration: "persistent",
         actionLabel: "Release Notes",
         onAction: openReleaseNotes,
       });
