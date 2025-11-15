@@ -31,6 +31,9 @@ export function NoteFinder(props: {
 
   // Fuzzy search as user types, or show top 6 notes if empty
   createEffect(async () => {
+    // Only run search when modal is shown
+    if (!props.showModal) return;
+
     const searchQuery = query();
 
     setIsLoading(true);
@@ -116,7 +119,7 @@ export function NoteFinder(props: {
   return (
     <Show when={props.showModal}>
       <div
-        class="bg-opacity-50 fixed inset-0 z-50 flex items-start justify-center bg-black pt-32"
+        class="bg-opacity-50 fixed inset-0 z-50 flex items-start justify-center bg-black pt-28"
         onClick={handleBackdropClick}
       >
         <div
@@ -170,7 +173,6 @@ export function NoteFinder(props: {
                     }}
                     onClick={() => handleResultClick(note)}
                     onMouseEnter={() => setSelectedIndex(index())}
-                    title={path}
                   >
                     {hasParent && <span class="opacity-50">{parentPath}</span>}
                     {noteName}

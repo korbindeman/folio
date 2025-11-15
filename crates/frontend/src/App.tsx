@@ -1,19 +1,37 @@
-import { onMount } from "solid-js";
-import { NotesProvider } from "./api";
+import { onMount, createSignal, onCleanup } from "solid-js";
+import { NotesProvider, useNotes } from "./api";
 import { Navigation } from "./components/Navigation";
 import EditorManager from "./components/EditorManager";
 import { ToastProvider, useToast } from "./components/Toast";
+import { NoteFinder } from "./components/NoteFinder";
 import { checkForUpdates } from "./utils/updater";
 import { downloadAndInstallUpdate, restartApp } from "./utils/updater";
 import { getVersion } from "@tauri-apps/api/app";
+import type { NoteMetadata } from "./types";
 
 const LAST_VERSION_KEY = "lastAppVersion";
 
 function AppContent() {
   const isDev = import.meta.env.DEV;
   const toast = useToast();
+  const notes = useNotes();
+  const [showNoteFinder, setShowNoteFinder] = createSignal(false);
+
+  // Global keyboard shortcut for Command+K / Control+K
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      setShowNoteFinder(true);
+    }
+  };
 
   onMount(async () => {
+    // Register global keyboard listener
+    document.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => {
+      document.removeEventListener("keydown", handleKeyDown);
+    });
     const currentVersion = await getVersion();
     const lastVersion = localStorage.getItem(LAST_VERSION_KEY);
 
@@ -54,6 +72,10 @@ function AppContent() {
     }
   });
 
+  const handleNoteSelect = (note: NoteMetadata) => {
+    notes.setCurrentPath(note.path);
+  };
+
   return (
     <div class="flex h-screen flex-col pt-0">
       <Navigation />
@@ -65,6 +87,12 @@ function AppContent() {
           DEV
         </div>
       )}
+      <NoteFinder
+        showModal={showNoteFinder()}
+        onSelect={handleNoteSelect}
+        onClose={() => setShowNoteFinder(false)}
+        placeholder="Search notes..."
+      />
     </div>
   );
 }
