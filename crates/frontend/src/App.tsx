@@ -54,22 +54,38 @@ function AppContent() {
     // Store current version for next launch
     localStorage.setItem(LAST_VERSION_KEY, currentVersion);
 
-    // Check for updates on app startup (silent check)
-    const update = await checkForUpdates();
-    if (update) {
-      toast.update(`Update available: v${update.version}`, {
-        duration: "persistent",
-        actionLabel: "Update & Restart",
-        onAction: async () => {
-          const success = await downloadAndInstallUpdate(update.update);
-          if (success) {
-            await restartApp();
-          } else {
-            toast.error("Failed to download update. Please try again.");
-          }
-        },
-      });
-    }
+    // Function to check for updates and show toast if available
+    const performUpdateCheck = async () => {
+      const update = await checkForUpdates();
+      if (update) {
+        toast.update(`Update available: v${update.version}`, {
+          duration: "persistent",
+          actionLabel: "Update & Restart",
+          onAction: async () => {
+            const success = await downloadAndInstallUpdate(update.update);
+            if (success) {
+              await restartApp();
+            } else {
+              toast.error("Failed to download update. Please try again.");
+            }
+          },
+        });
+      }
+    };
+
+    // Check for updates on app startup
+    await performUpdateCheck();
+
+    // Check for updates on interval
+    const HOURS = 2;
+    const updateCheckInterval = setInterval(
+      performUpdateCheck,
+      HOURS * 60 * 60 * 1000,
+    );
+
+    onCleanup(() => {
+      clearInterval(updateCheckInterval);
+    });
   });
 
   const handleNoteSelect = (note: NoteMetadata) => {
