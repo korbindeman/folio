@@ -5,8 +5,8 @@ import { history } from "@milkdown/kit/plugin/history";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import "prosemirror-view/style/prosemirror.css";
-import { useNoteContent, useAutoSave } from "../api";
-import { NoteContent } from "../api/hooks";
+import { useNoteContent, useAutoSave } from "../../api";
+import { NoteContent } from "../../api/hooks";
 import "./MdEditor.css";
 
 const AUTOSAVE_DELAY = 400;

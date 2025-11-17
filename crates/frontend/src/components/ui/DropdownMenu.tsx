@@ -1,12 +1,12 @@
 import { createSignal, For, onMount, onCleanup, Show } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
-import { useNotes } from "../api";
-import { commands } from "../api/commands";
+import { useNotes } from "../../api";
+import { commands } from "../../api/commands";
 import { InputModal } from "./InputModal";
 import { NoteFinder } from "./NoteFinder";
 import { MenuPanel } from "./MenuPanel";
 import { useToast } from "./Toast";
-import type { NoteMetadata } from "../types";
+import type { NoteMetadata } from "../../types";
 import type { MenuItem } from "./ContextMenu";
 import { ContextMenuContainer } from "./ContextMenu";
 
@@ -447,13 +447,13 @@ export function DropdownMenu(props: DropdownMenuProps) {
   return (
     <>
       <InputModal
-        showModal={showModal()}
+        open={showModal()}
         onSubmit={createNewNote}
         placeholder="untitled"
         onClose={() => setShowModal(false)}
       />
       <NoteFinder
-        showModal={showNoteFinder()}
+        open={showNoteFinder()}
         onSelect={handleMoveToDestination}
         onClose={() => setShowNoteFinder(false)}
         placeholder="Move to..."

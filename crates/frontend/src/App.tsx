@@ -1,9 +1,9 @@
 import { onMount, createSignal, onCleanup } from "solid-js";
 import { NotesProvider, useNotes } from "./api";
 import { Navigation } from "./components/Navigation";
-import EditorManager from "./components/EditorManager";
-import { ToastProvider, useToast } from "./components/Toast";
-import { NoteFinder } from "./components/NoteFinder";
+import EditorManager from "./components/editor/EditorManager";
+import { ToastProvider, useToast } from "./components/ui/Toast";
+import { NoteFinder } from "./components/ui/NoteFinder";
 import { checkForUpdates } from "./utils/updater";
 import { downloadAndInstallUpdate, restartApp } from "./utils/updater";
 import { getVersion } from "@tauri-apps/api/app";
@@ -99,12 +99,12 @@ function AppContent() {
         <EditorManager />
       </div>
       {isDev && (
-        <div class="fixed right-2 bottom-2 z-50 text-xs font-bold opacity-30">
-          DEV
+        <div class="fixed top-[9.5px] left-[80px] z-50 text-xs opacity-30 select-none">
+          DEV BUILD
         </div>
       )}
       <NoteFinder
-        showModal={showNoteFinder()}
+        open={showNoteFinder()}
         onSelect={handleNoteSelect}
         onClose={() => setShowNoteFinder(false)}
         placeholder="Search notes..."

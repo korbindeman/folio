@@ -1,7 +1,8 @@
 import { For } from "solid-js";
-import { getPathTitle } from "../utils/paths";
-import type { NoteMetadata } from "../types";
+import { getPathTitle } from "../../utils/paths";
+import type { NoteMetadata } from "../../types";
 import type { MenuItem } from "./ContextMenu";
+import { Card } from "../primitives/Card";
 
 const MAX_TITLE_LENGTH = 18;
 
@@ -39,9 +40,9 @@ interface MenuPanelProps {
 
 export function MenuPanel(props: MenuPanelProps) {
   return (
-    <div
+    <Card
       ref={(el) => props.setPanelRef(props.level, el)}
-      class="bg-paper text-text-muted absolute w-fit min-w-[140px] rounded-md border px-2.5 py-1 pr-4 outline-none"
+      class="absolute w-fit min-w-[140px] outline-none"
       style={{
         left: `${props.left}px`,
         top: `${props.top}px`,
@@ -93,6 +94,6 @@ export function MenuPanel(props: MenuPanelProps) {
       >
         New +
       </button>
-    </div>
+    </Card>
   );
 }

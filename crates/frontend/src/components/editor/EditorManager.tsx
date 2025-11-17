@@ -1,5 +1,5 @@
 import { createEffect, createSignal, For, Show } from "solid-js";
-import { useNotes } from "../api";
+import { useNotes } from "../../api";
 import MdLoader from "./MdEditor";
 
 export default function EditorManager() {

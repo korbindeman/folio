@@ -1,7 +1,7 @@
 import { createSignal, createEffect, Show, onCleanup, onMount } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useNotes } from "../api";
-import { commands } from "../api/commands";
+import { useNotes } from "../../api";
+import { commands } from "../../api/commands";
 
 const AUTOSAVE_DELAY = 1000;
 

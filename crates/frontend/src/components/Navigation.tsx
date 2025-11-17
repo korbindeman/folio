@@ -11,8 +11,8 @@ import { useNotes } from "../api";
 import { commands } from "../api/commands";
 import { getPathTitle } from "../utils/paths";
 import { expandMacros } from "../utils/macros";
-import { DropdownMenu } from "./DropdownMenu";
-import { useToast } from "./Toast";
+import { DropdownMenu } from "./ui/DropdownMenu";
+import { useToast } from "./ui/Toast";
 import type { NoteMetadata } from "../types";
 
 function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
