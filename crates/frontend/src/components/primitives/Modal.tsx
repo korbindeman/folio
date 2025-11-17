@@ -31,10 +31,7 @@ export function Modal(props: ModalProps) {
         class="bg-opacity-50 fixed inset-0 z-50 flex items-start justify-center bg-black pt-28"
         onClick={handleBackdropClick}
       >
-        <div
-          class={props.class}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div class={props.class} onClick={(e) => e.stopPropagation()}>
           {props.children}
         </div>
       </div>

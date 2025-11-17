@@ -8,7 +8,7 @@ import {
   DEFAULT_SETTINGS,
   type Settings as SettingsType,
 } from "../../utils/settings";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+// import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 export function Settings(props: { open: boolean; onClose: () => void }) {
   const [settings, setSettings] = createSignal<SettingsType | null>(null);
@@ -29,13 +29,13 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
     await saveSettings(updated);
   };
 
-  const updateNotesLocation = async (value: string) => {
-    const current = settings();
-    if (!current) return;
-    const updated = { ...current, notesLocation: value };
-    setSettings(updated);
-    await saveSettings(updated);
-  };
+  // const updateNotesLocation = async (value: string) => {
+  //   const current = settings();
+  //   if (!current) return;
+  //   const updated = { ...current, notesLocation: value };
+  //   setSettings(updated);
+  //   await saveSettings(updated);
+  // };
 
   const updateAutoCheckUpdates = async (value: boolean) => {
     const current = settings();
@@ -45,16 +45,16 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
     await saveSettings(updated);
   };
 
-  const selectFolder = async () => {
-    const selected = await openDialog({
-      directory: true,
-      multiple: false,
-      title: "Select Notes Location",
-    });
-    if (selected && typeof selected === "string") {
-      await updateNotesLocation(selected);
-    }
-  };
+  // const selectFolder = async () => {
+  //   const selected = await openDialog({
+  //     directory: true,
+  //     multiple: false,
+  //     title: "Select Notes Location",
+  //   });
+  //   if (selected && typeof selected === "string") {
+  //     await updateNotesLocation(selected);
+  //   }
+  // };
 
   return (
     <Modal open={props.open} onClose={props.onClose}>
@@ -70,7 +70,7 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => updateFontSize(DEFAULT_SETTINGS.fontSize)}
-                    class="text-text-muted hover:text-text text-xs"
+                    class="text-text-muted hover:text-text text-xs hover:underline"
                   >
                     Reset
                   </button>
@@ -129,7 +129,7 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
                     onClick={() =>
                       updateAutoCheckUpdates(DEFAULT_SETTINGS.autoCheckUpdates)
                     }
-                    class="text-text-muted hover:text-text text-xs"
+                    class="text-text-muted hover:text-text text-xs hover:underline"
                   >
                     Reset
                   </button>
