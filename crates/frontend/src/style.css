@@ -3,12 +3,12 @@
 @import "@fontsource/dm-mono";
 
 @theme {
-  --font-sans: "DM Sans", sans-serif;
-  --font-mono: "DM Mono", monospace;
-
   /* Disable default Tailwind variables */
   --color-*: initial;
   --font-*: initial;
+
+  /*--font-sans: "DM Sans", sans-serif;*/
+  --font-mono: "DM Mono", monospace;
 
   /* Light theme (default) */
   --color-background: #f8f6f0;
