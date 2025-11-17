@@ -6129,7 +6129,7 @@ dependencies = [
 
 [[package]]
 name = "zinnia_core"
-version = "0.3.8"
+version = "0.3.0"
 dependencies = [
  "dirs 5.0.1",
  "notify",

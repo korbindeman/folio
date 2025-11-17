@@ -705,19 +705,19 @@ impl NotesApi {
     /// Performs case-insensitive substring matching on note paths.
     /// Returns non-archived notes sorted by:
     /// 1. Path prefix matches first (e.g., "hel" matches "hello/world" before "some/hello")
-    /// 2. Frecency score for same match quality
+    /// 2. Direct access count for same match quality
     /// 3. Alphabetical order as final tiebreaker
     ///
     /// Designed for interactive note pickers where users type partial titles.
     pub fn fuzzy_search(&self, query: &str, limit: Option<usize>) -> Result<Vec<NoteMetadata>> {
         if query.is_empty() {
-            // Return top notes by frecency when no query provided
+            // Return top notes by direct access count when no query provided
             let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
             let sql = format!(
                 "SELECT id, path, mtime, archived
                  FROM notes
                  WHERE archived = 0
-                 ORDER BY frecency_score DESC
+                 ORDER BY direct_access_count DESC, path ASC
                  {}",
                 limit_clause
             );
@@ -753,7 +753,7 @@ impl NotesApi {
                     END as match_priority
              FROM notes
              WHERE archived = 0 AND LOWER(path) LIKE LOWER(?2)
-             ORDER BY match_priority ASC, frecency_score DESC, path ASC
+             ORDER BY match_priority ASC, direct_access_count DESC, path ASC
              {}",
             limit_clause
         );
@@ -955,14 +955,14 @@ impl NotesApi {
             .unwrap()
             .as_secs() as i64;
 
-        // Update the note itself
-        self.update_frecency(path, now)?;
+        // Update the note itself (including direct access count)
+        self.update_frecency(path, now, true)?;
 
-        // Propagate to ancestors
+        // Propagate to ancestors (without incrementing direct access count)
         let mut current = path.to_string();
         while let Some(parent_path) = get_parent_path(&current) {
             if self.note_exists(&parent_path)? {
-                self.update_frecency(&parent_path, now)?;
+                self.update_frecency(&parent_path, now, false)?;
             }
             current = parent_path;
         }
@@ -976,7 +976,8 @@ impl NotesApi {
     }
 
     /// Updates a single note's access count, timestamp, and frecency score.
-    fn update_frecency(&mut self, path: &str, access_time: i64) -> Result<()> {
+    /// If `is_direct` is true, also increments the direct_access_count.
+    fn update_frecency(&mut self, path: &str, access_time: i64, is_direct: bool) -> Result<()> {
         // Get current values
         let (access_count, _last_accessed): (i64, Option<i64>) = self.db.query_row(
             "SELECT access_count, last_accessed_at FROM notes WHERE path = ?1",
@@ -988,10 +989,17 @@ impl NotesApi {
         let new_score = Self::calculate_frecency_score(new_count, Some(access_time));
 
         // Update database
-        self.db.execute(
-            "UPDATE notes SET access_count = ?1, last_accessed_at = ?2, frecency_score = ?3 WHERE path = ?4",
-            params![new_count, access_time, new_score, path],
-        )?;
+        if is_direct {
+            self.db.execute(
+                "UPDATE notes SET access_count = ?1, last_accessed_at = ?2, frecency_score = ?3, direct_access_count = direct_access_count + 1 WHERE path = ?4",
+                params![new_count, access_time, new_score, path],
+            )?;
+        } else {
+            self.db.execute(
+                "UPDATE notes SET access_count = ?1, last_accessed_at = ?2, frecency_score = ?3 WHERE path = ?4",
+                params![new_count, access_time, new_score, path],
+            )?;
+        }
 
         Ok(())
     }
@@ -1060,8 +1068,17 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         conn.pragma_update(None, "user_version", 2)?;
     }
 
+    if version < 3 {
+        // Add direct access count (non-cascading)
+        conn.execute_batch(
+            "ALTER TABLE notes ADD COLUMN direct_access_count INTEGER DEFAULT 0;
+             CREATE INDEX idx_direct_access_count ON notes(direct_access_count DESC);",
+        )?;
+        conn.pragma_update(None, "user_version", 3)?;
+    }
+
     // Future migrations go here
-    // if version < 3 { ... }
+    // if version < 4 { ... }
 
     Ok(())
 }
@@ -1108,7 +1125,7 @@ mod tests {
 
         // Verify schema version (should be latest)
         let version = get_schema_version(&api.db).unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
     }
 
     #[test]
@@ -1122,7 +1139,7 @@ mod tests {
         // Open existing database
         let api2 = NotesApi::new(temp_dir.path()).unwrap();
         let version = get_schema_version(&api2.db).unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
     }
 
     #[test]
@@ -1203,7 +1220,7 @@ mod tests {
         let conn = Connection::open(&db_path).unwrap();
         conn.execute("CREATE TABLE wrong_table (id INTEGER)", [])
             .unwrap();
-        conn.pragma_update(None, "user_version", 2).unwrap();
+        conn.pragma_update(None, "user_version", 3).unwrap();
         drop(conn);
 
         // Attempt to open should fail verification
