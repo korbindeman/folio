@@ -3,8 +3,10 @@ import {
   createContext,
   useContext,
   ParentComponent,
+  Component,
   For,
   Show,
+  onMount,
 } from "solid-js";
 
 type ToastType = "success" | "error" | "info" | "update";
@@ -112,16 +114,16 @@ export const ToastProvider: ParentComponent = (props) => {
   return (
     <ToastContext.Provider value={contextValue}>
       {props.children}
-      <div class="pointer-events-none fixed right-4 bottom-4 z-[200] flex flex-col gap-2">
+      <div class="pointer-events-none fixed right-3 bottom-3 z-[200] flex flex-col gap-1.5">
         <For each={toasts()}>
           {(toast) => (
-            <div class="bg-paper pointer-events-auto rounded-md border px-4 py-3 shadow-lg">
-              <div class="text-text flex items-center gap-3">
-                <span class="text-sm select-none">{toast.message}</span>
-                <div class="ml-auto flex items-center gap-2">
+            <div class="bg-paper pointer-events-auto rounded border px-3 py-2 shadow-md">
+              <div class="text-text flex items-center gap-4">
+                <span class="text-xs select-none">{toast.message}</span>
+                <div class="ml-auto flex items-center gap-1.5">
                   <Show when={toast.onUndo}>
                     <button
-                      class="text-text-muted text-sm underline hover:opacity-80"
+                      class="text-text-muted text-xs underline hover:opacity-80"
                       onClick={() => handleUndo(toast)}
                     >
                       Undo
@@ -130,7 +132,7 @@ export const ToastProvider: ParentComponent = (props) => {
 
                   <Show when={toast.onAction && toast.actionLabel}>
                     <button
-                      class="bg-accent text-text rounded px-3 py-1 text-sm font-medium hover:underline hover:opacity-90"
+                      class="text-text-muted text-xs underline hover:opacity-80"
                       onClick={() => {
                         toast.onAction?.();
                         removeToast(toast.id);
@@ -140,7 +142,7 @@ export const ToastProvider: ParentComponent = (props) => {
                     </button>
                   </Show>
                   <button
-                    class="text-text-muted opacity-50 hover:opacity-100"
+                    class="text-text-muted text-sm opacity-50 hover:opacity-100"
                     onClick={() => removeToast(toast.id)}
                   >
                     ×
@@ -153,4 +155,28 @@ export const ToastProvider: ParentComponent = (props) => {
       </div>
     </ToastContext.Provider>
   );
+};
+
+export const ToastDebug: Component = () => {
+  const toast = useToast();
+
+  onMount(() => {
+    toast.success("Note deleted", {
+      onUndo: () => console.log("Undo delete"),
+      duration: "persistent",
+    });
+    toast.info("Syncing notes...", { duration: "persistent" });
+    toast.update("Update available: v0.4.0", {
+      actionLabel: "Restart & Update",
+      onAction: () => console.log("Restart & Update clicked"),
+      duration: "persistent",
+    });
+    toast.success("Updated to v0.3.7", {
+      actionLabel: "Release Notes",
+      onAction: () => console.log("Release Notes clicked"),
+      duration: "persistent",
+    });
+  });
+
+  return null;
 };
