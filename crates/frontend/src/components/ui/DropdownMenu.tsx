@@ -21,6 +21,7 @@ interface DropdownMenuProps {
   content: NoteMetadata[];
   path: string;
   onRefresh?: () => void;
+  isActive?: boolean;
 }
 
 export function DropdownMenu(props: DropdownMenuProps) {
@@ -461,7 +462,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
       />
       <button
         ref={buttonRef}
-        class="hover:bg-button-hover rounded px-0.5 font-mono"
+        class={`hover:bg-button-hover rounded px-0.5 font-mono ${props.isActive ? "" : "opacity-60"}`}
         onClick={handleClick}
         onMouseDown={() => {
           // Close context menu when clicking outside

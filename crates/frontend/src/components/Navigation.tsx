@@ -88,7 +88,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
         when={isEditing()}
         fallback={
           <button
-            class={`hover:bg-button-hover rounded px-2 ${props.isActive ? "font-bold" : ""}`}
+            class={`hover:bg-button-hover rounded px-2 ${props.isActive ? "" : "opacity-60"}`}
             onClick={handleClick}
           >
             {getPathTitle(props.item.path)}
@@ -113,7 +113,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
           when={children().length > 0}
           fallback={
             <button
-              class="hover:bg-button-hover rounded px-2"
+              class="hover:bg-button-hover rounded px-2 opacity-60"
               onClick={handleCreateNote}
             >
               +
@@ -124,6 +124,7 @@ function Breadcrumb(props: { item: NoteMetadata; isActive: boolean }) {
             content={children()}
             path={props.item.path}
             onRefresh={() => setRefreshKey((k) => k + 1)}
+            isActive={props.isActive}
           />
         </Show>
       </Show>
@@ -185,7 +186,7 @@ export function Navigation() {
         </div>
         <div class="ml-4 flex gap-1">
           <button
-            class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
+            class="hover:bg-button-hover rounded px-2 opacity-60 disabled:cursor-not-allowed disabled:opacity-30"
             onClick={() => notes.goBack()}
             disabled={!notes.canGoBack()}
             title="Go back"
@@ -193,7 +194,7 @@ export function Navigation() {
             ←
           </button>
           <button
-            class="hover:bg-button-hover rounded px-2 disabled:cursor-not-allowed disabled:opacity-30"
+            class="hover:bg-button-hover rounded px-2 opacity-60 disabled:cursor-not-allowed disabled:opacity-30"
             onClick={() => notes.goForward()}
             disabled={!notes.canGoForward()}
             title="Go forward"
