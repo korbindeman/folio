@@ -4,18 +4,19 @@ import { Navigation } from "./components/Navigation";
 import EditorManager from "./components/editor/EditorManager";
 import { ToastProvider, useToast } from "./components/ui/Toast";
 import { NoteFinder } from "./components/ui/NoteFinder";
+import { Settings } from "./components/ui/Settings";
 import { checkForUpdates } from "./utils/updater";
 import { downloadAndInstallUpdate, restartApp } from "./utils/updater";
 import { getVersion } from "@tauri-apps/api/app";
+import { loadSettings, updateSetting } from "./utils/settings";
 import type { NoteMetadata } from "./types";
-
-const LAST_VERSION_KEY = "lastAppVersion";
 
 function AppContent() {
   const isDev = import.meta.env.DEV;
   const toast = useToast();
   const notes = useNotes();
   const [showNoteFinder, setShowNoteFinder] = createSignal(false);
+  const [showSettings, setShowSettings] = createSignal(false);
 
   // Global keyboard shortcut for Command+K / Control+K
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -23,6 +24,11 @@ function AppContent() {
     if ((e.metaKey || e.ctrlKey) && e.key === "k") {
       e.preventDefault();
       setShowNoteFinder(true);
+    }
+    // Check for Cmd+, (Mac) or Ctrl+, (Windows/Linux)
+    if ((e.metaKey || e.ctrlKey) && e.key === ",") {
+      e.preventDefault();
+      setShowSettings(true);
     }
   };
 
@@ -32,8 +38,15 @@ function AppContent() {
     onCleanup(() => {
       document.removeEventListener("keydown", handleKeyDown);
     });
+
+    const settings = await loadSettings();
+    console.log("Loaded settings:", settings);
+
+    // Apply font size setting
+    document.documentElement.style.fontSize = `${settings.fontSize}px`;
+
     const currentVersion = await getVersion();
-    const lastVersion = localStorage.getItem(LAST_VERSION_KEY);
+    const lastVersion = settings.lastAppVersion;
 
     // Check if app was just updated
     if (lastVersion && lastVersion !== currentVersion) {
@@ -52,10 +65,12 @@ function AppContent() {
     }
 
     // Store current version for next launch
-    localStorage.setItem(LAST_VERSION_KEY, currentVersion);
+    await updateSetting("lastAppVersion", currentVersion);
 
     // Function to check for updates and show toast if available
     const performUpdateCheck = async () => {
+      if (!settings.autoCheckUpdates) return;
+
       const update = await checkForUpdates();
       if (update) {
         toast.update(`Update available: v${update.version}`, {
@@ -99,7 +114,7 @@ function AppContent() {
         <EditorManager />
       </div>
       {isDev && (
-        <div class="fixed top-[9.5px] left-[80px] z-50 text-xs opacity-30 select-none">
+        <div class="pointer-events-none fixed top-[9.5px] left-[80px] z-50 text-xs opacity-30">
           DEV BUILD
         </div>
       )}
@@ -109,6 +124,7 @@ function AppContent() {
         onClose={() => setShowNoteFinder(false)}
         placeholder="Search notes..."
       />
+      <Settings open={showSettings()} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

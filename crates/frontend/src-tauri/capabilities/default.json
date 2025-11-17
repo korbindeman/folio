@@ -12,6 +12,20 @@
     "updater:allow-download",
     "updater:allow-install",
     "process:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "fs:default",
+    "fs:allow-exists",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-mkdir",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$HOME/.config" },
+        { "path": "$HOME/.config/Zinnia" },
+        { "path": "$HOME/.config/Zinnia/**" }
+      ]
+    },
+    "dialog:default"
   ]
 }
