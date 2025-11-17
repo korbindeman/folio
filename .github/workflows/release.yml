@@ -62,9 +62,6 @@ jobs:
           # Only restore from main branch builds
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Show cache status
-        run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
-
       - name: Install frontend dependencies
         working-directory: crates/frontend
         run: bun install
