@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Restore file mtimes
+        uses: chetan/git-restore-mtime-action@v2
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
