@@ -109,7 +109,7 @@ export function NoteFinder(props: {
     <Modal
       open={props.open}
       onClose={handleClose}
-      class="bg-paper text-text-muted w-[400px] rounded-md border outline-none"
+      class="bg-paper text-text-muted w-[400px] rounded-md border text-sm outline-none"
     >
       <div class="border-b px-2.5 py-1 pr-4">
         <input
