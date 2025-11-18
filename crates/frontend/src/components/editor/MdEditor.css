@@ -45,4 +45,9 @@
   & hr {
     margin: 0.8rem 0rem;
   }
+
+  & img {
+    max-height: 300px;
+    width: auto;
+  }
 }
