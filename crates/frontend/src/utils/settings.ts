@@ -10,7 +10,6 @@ export interface Settings {
   fontSize: number;
   notesLocation: string;
   autoCheckUpdates: boolean;
-  lastAppVersion?: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -25,7 +24,7 @@ let settingsDir: string | null = null;
 async function getSettingsPath(): Promise<string> {
   if (!settingsPath) {
     const home = await homeDir();
-    settingsDir = `${home}/.config/Zinnia`;
+    settingsDir = `${home}/.config/zinnia`;
     settingsPath = `${settingsDir}/settings.json`;
   }
   return settingsPath;

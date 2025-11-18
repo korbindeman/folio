@@ -2,6 +2,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Note, NoteMetadata } from "../types";
 
+export type RankingMode = "visits" | "frecency";
+
 export const commands = {
   createNote: (path: string) => invoke<Note>("create_note", { path }),
 
@@ -27,8 +29,16 @@ export const commands = {
 
   getAllNotes: () => invoke<NoteMetadata[]>("get_all_notes"),
 
-  fuzzySearchNotes: (query: string, limit?: number) =>
-    invoke<NoteMetadata[]>("fuzzy_search_notes", { query, limit }),
+  fuzzySearchNotes: (
+    query: string,
+    limit?: number,
+    rankingMode?: RankingMode,
+  ) =>
+    invoke<NoteMetadata[]>("fuzzy_search_notes", {
+      query,
+      limit,
+      rankingMode: rankingMode || "visits",
+    }),
 
   searchNotes: (query: string) =>
     invoke<NoteMetadata[]>("search_notes", { query }),

@@ -47,6 +47,14 @@ pub struct NoteMetadata {
     pub archived: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RankingMode {
+    /// Rank by direct visit count only
+    Visits,
+    /// Rank by frecency score (frequency + recency)
+    Frecency,
+}
+
 pub struct NotesApi {
     fs: NoteFilesystem,
     db: Connection,
@@ -705,21 +713,31 @@ impl NotesApi {
     /// Performs case-insensitive substring matching on note paths.
     /// Returns non-archived notes sorted by:
     /// 1. Path prefix matches first (e.g., "hel" matches "hello/world" before "some/hello")
-    /// 2. Direct access count for same match quality
+    /// 2. Ranking score (frecency or visits, depending on `ranking_mode`)
     /// 3. Alphabetical order as final tiebreaker
     ///
     /// Designed for interactive note pickers where users type partial titles.
-    pub fn fuzzy_search(&self, query: &str, limit: Option<usize>) -> Result<Vec<NoteMetadata>> {
+    pub fn fuzzy_search(
+        &self,
+        query: &str,
+        limit: Option<usize>,
+        ranking_mode: RankingMode,
+    ) -> Result<Vec<NoteMetadata>> {
+        let ranking_column = match ranking_mode {
+            RankingMode::Visits => "direct_access_count",
+            RankingMode::Frecency => "frecency_score",
+        };
+
         if query.is_empty() {
-            // Return top notes by direct access count when no query provided
+            // Return top notes by ranking when no query provided
             let limit_clause = limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default();
             let sql = format!(
                 "SELECT id, path, mtime, archived
                  FROM notes
                  WHERE archived = 0
-                 ORDER BY direct_access_count DESC, path ASC
+                 ORDER BY {} DESC, path ASC
                  {}",
-                limit_clause
+                ranking_column, limit_clause
             );
 
             let mut stmt = self.db.prepare(&sql)?;
@@ -753,9 +771,9 @@ impl NotesApi {
                     END as match_priority
              FROM notes
              WHERE archived = 0 AND LOWER(path) LIKE LOWER(?2)
-             ORDER BY match_priority ASC, direct_access_count DESC, path ASC
+             ORDER BY match_priority ASC, {} DESC, path ASC
              {}",
-            limit_clause
+            ranking_column, limit_clause
         );
 
         let mut stmt = self.db.prepare(&sql)?;
@@ -1958,35 +1976,39 @@ mod tests {
         api.create_note("other/stuff").unwrap();
 
         // Test prefix matching - "hel" should match hello, hello-world, help
-        let results = api.fuzzy_search("hel", None).unwrap();
+        let results = api.fuzzy_search("hel", None, RankingMode::Visits).unwrap();
         assert_eq!(results.len(), 4); // hello, hello-world, help, project/hello
 
         // Verify prefix matches come first
         assert!(results[0].path.starts_with("hel") || results[0].path == "help");
 
         // Test single character
-        let results = api.fuzzy_search("h", None).unwrap();
+        let results = api.fuzzy_search("h", None, RankingMode::Visits).unwrap();
         assert!(results.len() >= 4); // At least the hello variants and help
 
         // Test exact match
-        let results = api.fuzzy_search("hello", None).unwrap();
+        let results = api
+            .fuzzy_search("hello", None, RankingMode::Visits)
+            .unwrap();
         assert!(results.iter().any(|n| n.path == "hello"));
         assert!(results.iter().any(|n| n.path == "hello-world"));
 
         // Test case insensitivity
-        let results = api.fuzzy_search("HELLO", None).unwrap();
+        let results = api
+            .fuzzy_search("HELLO", None, RankingMode::Visits)
+            .unwrap();
         assert!(results.iter().any(|n| n.path == "hello"));
 
         // Test substring matching
-        let results = api.fuzzy_search("ell", None).unwrap();
+        let results = api.fuzzy_search("ell", None, RankingMode::Visits).unwrap();
         assert!(results.iter().any(|n| n.path == "hello"));
 
         // Test no matches
-        let results = api.fuzzy_search("xyz", None).unwrap();
+        let results = api.fuzzy_search("xyz", None, RankingMode::Visits).unwrap();
         assert_eq!(results.len(), 0);
 
         // Test empty query returns all notes
-        let results = api.fuzzy_search("", None).unwrap();
+        let results = api.fuzzy_search("", None, RankingMode::Visits).unwrap();
         assert_eq!(results.len(), 7); // All notes including parent folders
     }
 
@@ -2004,7 +2026,7 @@ mod tests {
         api.create_note("other/testing-notes").unwrap();
 
         // Prefix matches should rank higher than substring matches
-        let results = api.fuzzy_search("test", None).unwrap();
+        let results = api.fuzzy_search("test", None, RankingMode::Visits).unwrap();
 
         // "test" and "testing" should come before "project/test"
         // (prefix match on path vs prefix match on segment)

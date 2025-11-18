@@ -459,6 +459,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
         onClose={() => setShowNoteFinder(false)}
         placeholder="Move to..."
         excludePath={noteToMove()}
+        rankBy="frecency"
       />
       <button
         ref={buttonRef}

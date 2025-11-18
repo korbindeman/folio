@@ -1,5 +1,5 @@
 import { createSignal, createEffect, For, onMount, onCleanup } from "solid-js";
-import { commands } from "../../api/commands";
+import { commands, type RankingMode } from "../../api/commands";
 import type { NoteMetadata } from "../../types";
 import { Modal } from "../primitives/Modal";
 
@@ -9,6 +9,7 @@ export function NoteFinder(props: {
   onClose: () => void;
   placeholder?: string;
   excludePath?: string | null;
+  rankBy?: RankingMode;
 }) {
   const [query, setQuery] = createSignal("");
   const [results, setResults] = createSignal<NoteMetadata[]>([]);
@@ -35,10 +36,15 @@ export function NoteFinder(props: {
     if (!props.open) return;
 
     const searchQuery = query();
+    const rankingMode = props.rankBy || "visits";
 
     setIsLoading(true);
     try {
-      const searchResults = await commands.fuzzySearchNotes(searchQuery, 6);
+      const searchResults = await commands.fuzzySearchNotes(
+        searchQuery,
+        6,
+        rankingMode,
+      );
       const filtered = props.excludePath
         ? searchResults.filter((note) => note.path !== props.excludePath)
         : searchResults;

@@ -13,6 +13,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { commands } from "./commands";
 import type { Note, NoteMetadata } from "../types";
+import { setAppState } from "../utils/appState";
 
 interface NotesContextValue {
   // Current note state
@@ -78,6 +79,13 @@ export function NotesProvider(props: ParentProps) {
     }
 
     setCurrentPathInternal(path);
+
+    // Save last opened note to app state (only if path is not empty)
+    if (path) {
+      setAppState("lastOpenedNote", path).catch((err) =>
+        console.error("Failed to save last opened note:", err),
+      );
+    }
   };
 
   // History navigation helpers

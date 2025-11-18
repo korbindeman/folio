@@ -8,7 +8,8 @@ import { Settings } from "./components/ui/Settings";
 import { checkForUpdates } from "./utils/updater";
 import { downloadAndInstallUpdate, restartApp } from "./utils/updater";
 import { getVersion } from "@tauri-apps/api/app";
-import { loadSettings, updateSetting } from "./utils/settings";
+import { loadSettings } from "./utils/settings";
+import { getAppState, setAppState } from "./utils/appState";
 import type { NoteMetadata } from "./types";
 
 function AppContent() {
@@ -45,8 +46,14 @@ function AppContent() {
     // Apply font size setting
     document.documentElement.style.fontSize = `${settings.fontSize}px`;
 
+    // Open last opened note if it exists
+    const lastOpenedNote = await getAppState("lastOpenedNote");
+    if (lastOpenedNote) {
+      notes.setCurrentPath(lastOpenedNote);
+    }
+
     const currentVersion = await getVersion();
-    const lastVersion = settings.lastAppVersion;
+    const lastVersion = await getAppState("lastAppVersion");
 
     // Check if app was just updated
     if (lastVersion && lastVersion !== currentVersion) {
@@ -65,7 +72,7 @@ function AppContent() {
     }
 
     // Store current version for next launch
-    await updateSetting("lastAppVersion", currentVersion);
+    await setAppState("lastAppVersion", currentVersion);
 
     // Function to check for updates and show toast if available
     const performUpdateCheck = async () => {

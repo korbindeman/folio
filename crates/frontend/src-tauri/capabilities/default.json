@@ -26,6 +26,12 @@
         { "path": "$HOME/.config/Zinnia/**" }
       ]
     },
-    "dialog:default"
+    "dialog:default",
+    "store:default",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-save",
+    "store:allow-load",
+    "store:allow-clear"
   ]
 }

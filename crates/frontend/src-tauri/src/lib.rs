@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
-use zinnia_core::{
-    Note, NoteMetadata, NotesApi, WatcherEvent, migrate_legacy_notes_path, setup_watcher,
-};
+use zinnia_core::{Note, NoteMetadata, NotesApi, RankingMode, WatcherEvent, setup_watcher};
 
 // Application state holding the NotesApi instance
 pub struct AppState {
@@ -25,6 +23,22 @@ pub struct NoteMetadataDTO {
     path: String,
     modified: u64, // Unix timestamp
     archived: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RankingModeDTO {
+    Visits,
+    Frecency,
+}
+
+impl From<RankingModeDTO> for RankingMode {
+    fn from(dto: RankingModeDTO) -> Self {
+        match dto {
+            RankingModeDTO::Visits => RankingMode::Visits,
+            RankingModeDTO::Frecency => RankingMode::Frecency,
+        }
+    }
 }
 
 // Convert core types to DTOs
@@ -138,10 +152,11 @@ fn get_all_notes(state: State<AppState>) -> Result<Vec<NoteMetadataDTO>, String>
 fn fuzzy_search_notes(
     query: String,
     limit: Option<usize>,
+    ranking_mode: RankingModeDTO,
     state: State<AppState>,
 ) -> Result<Vec<NoteMetadataDTO>, String> {
     let api = state.notes_api.lock().unwrap();
-    api.fuzzy_search(&query, limit)
+    api.fuzzy_search(&query, limit, ranking_mode.into())
         .map(|results| results.into_iter().map(|r| r.into()).collect())
         .map_err(|e| format!("{:?}", e))
 }
@@ -174,15 +189,6 @@ fn trash_note(path: String, state: State<AppState>) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Attempt to migrate from legacy notes path (pre-0.4.0)
-    match migrate_legacy_notes_path(cfg!(debug_assertions)) {
-        Ok(true) => println!("Successfully migrated notes from legacy path to Zinnia"),
-        Ok(false) => {
-            // Migration not needed - either legacy doesn't exist or new path already exists
-        }
-        Err(e) => eprintln!("Warning: Failed to migrate notes: {:?}", e),
-    }
-
     let mut api =
         NotesApi::with_default_path(cfg!(debug_assertions)).expect("Failed to initialize NotesApi");
     api.startup_sync().expect("Failed to sync notes database");
@@ -198,6 +204,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
