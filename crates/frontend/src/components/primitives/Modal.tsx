@@ -1,4 +1,4 @@
-import { Show, onMount, onCleanup, createEffect, JSX } from "solid-js";
+import { Show, onMount, onCleanup, JSX } from "solid-js";
 
 export interface ModalProps {
   open: boolean;

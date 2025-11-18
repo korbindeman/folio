@@ -86,7 +86,6 @@ jobs:
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: crates/frontend
-          packageManager: npm
           tagName: ${{ github.ref_name }}
           releaseName: "Zinnia ${{ github.ref_name }}"
           releaseBody: "Release notes:"

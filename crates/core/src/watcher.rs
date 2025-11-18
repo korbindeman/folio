@@ -84,11 +84,9 @@ where
                 Ok(event) => {
                     // Ignore changes to the database file itself to prevent loops
                     let is_db_change = event.paths.iter().any(|p| {
-                        p.file_name()
-                            .and_then(|n| n.to_str())
-                            .map_or(false, |name| {
-                                name == ".notes.db" || name.starts_with(".notes.db-")
-                            })
+                        p.file_name().and_then(|n| n.to_str()).is_some_and(|name| {
+                            name == ".notes.db" || name.starts_with(".notes.db-")
+                        })
                     });
 
                     if is_db_change {
@@ -133,25 +131,22 @@ where
                             // Extract note paths from the event
                             for path in &event.paths {
                                 // Convert filesystem path to note path
-                                if let Some(note_path) = path_to_note_path(path) {
-                                    if let Ok(mut api) = notes_api.lock() {
-                                        // Use sync_note which returns true only if content changed
-                                        match api.sync_note(&note_path) {
-                                            Ok(true) => {
-                                                // Only notify if content actually changed
-                                                if let Some(ref callback) = on_change {
-                                                    callback(WatcherEvent::NotesChanged);
-                                                }
+                                if let Some(note_path) = path_to_note_path(path)
+                                    && let Ok(mut api) = notes_api.lock()
+                                {
+                                    // Use sync_note which returns true only if content changed
+                                    match api.sync_note(&note_path) {
+                                        Ok(true) => {
+                                            // Only notify if content actually changed
+                                            if let Some(ref callback) = on_change {
+                                                callback(WatcherEvent::NotesChanged);
                                             }
-                                            Ok(false) => {
-                                                // Don't notify - content is identical
-                                            }
-                                            Err(e) => {
-                                                eprintln!(
-                                                    "Failed to sync note {}: {:?}",
-                                                    note_path, e
-                                                );
-                                            }
+                                        }
+                                        Ok(false) => {
+                                            // Don't notify - content is identical
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Failed to sync note {}: {:?}", note_path, e);
                                         }
                                     }
                                 }

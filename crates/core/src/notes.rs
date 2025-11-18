@@ -176,10 +176,10 @@ impl NotesApi {
         let _guard = OperationGuard::new(Arc::clone(&self.operation_in_progress));
 
         // Check if parent exists (if not root-level)
-        if let Some(parent_path) = get_parent_path(path) {
-            if !self.note_exists(&parent_path)? {
-                return Err(Error::ParentNotFound(parent_path));
-            }
+        if let Some(parent_path) = get_parent_path(path)
+            && !self.note_exists(&parent_path)?
+        {
+            return Err(Error::ParentNotFound(parent_path));
         }
 
         // Create note in filesystem
@@ -385,7 +385,7 @@ impl NotesApi {
             // Move descendants
             for (desc_old, desc_content) in &descendants {
                 let desc_new = desc_old.replacen(old_path, new_path, 1);
-                self.fs.write_note(&desc_new, &desc_content)?;
+                self.fs.write_note(&desc_new, desc_content)?;
             }
 
             // Delete old path (after all new files are written)
@@ -564,7 +564,7 @@ impl NotesApi {
 
         // Determine archive path
         let archive_path = if let Some(parent) = get_parent_path(path) {
-            let name = path.split('/').last().unwrap();
+            let name = path.split('/').next_back().unwrap();
             format!("{}/_archive/{}", parent, name)
         } else {
             let name = path;

@@ -77,17 +77,13 @@ impl NoteFilesystem {
                 "Note does not exist",
             ));
         }
-        trash::delete(&dir_path).map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("Failed to move note to trash: {}", e),
-            )
-        })
+        trash::delete(&dir_path)
+            .map_err(|e| io::Error::other(format!("Failed to move note to trash: {}", e)))
     }
 
     pub fn scan_all(&self) -> io::Result<Vec<FSNoteMetadata>> {
         let mut notes = Vec::new();
-        self.scan_dir(&self.root_path, "", &mut notes)?;
+        Self::scan_dir(&self.root_path, "", &mut notes)?;
         Ok(notes)
     }
 
@@ -112,12 +108,7 @@ impl NoteFilesystem {
         }
     }
 
-    fn scan_dir(
-        &self,
-        dir: &Path,
-        prefix: &str,
-        notes: &mut Vec<FSNoteMetadata>,
-    ) -> io::Result<()> {
+    fn scan_dir(dir: &Path, prefix: &str, notes: &mut Vec<FSNoteMetadata>) -> io::Result<()> {
         let index_path = dir.join("_index.md");
         if index_path.exists() {
             let metadata = fs::metadata(&index_path)?;
@@ -139,7 +130,7 @@ impl NoteFilesystem {
                 } else {
                     format!("{}/{}", prefix, name)
                 };
-                self.scan_dir(&entry.path(), &new_prefix, notes)?;
+                Self::scan_dir(&entry.path(), &new_prefix, notes)?;
             }
         }
 

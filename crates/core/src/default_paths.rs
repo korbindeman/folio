@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::PathBuf;
 
 /// Returns the default notes directory path based on platform and debug mode.
