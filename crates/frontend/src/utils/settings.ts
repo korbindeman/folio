@@ -13,7 +13,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  fontSize: 16,
+  fontSize: 14,
   notesLocation: "",
   autoCheckUpdates: true,
 };
@@ -52,10 +52,19 @@ export async function loadSettings(): Promise<Settings> {
     const content = await readTextFile(path);
     const parsed = JSON.parse(content);
 
-    return {
+    const settings = {
       ...DEFAULT_SETTINGS,
       ...parsed,
     };
+
+    // Migration: If fontSize is 16 (old default), reset to 14 (new default)
+    if (parsed.fontSize === 16) {
+      settings.fontSize = 14;
+      // Save the migrated settings
+      await saveSettings(settings);
+    }
+
+    return settings;
   } catch (error) {
     console.error("Failed to load settings:", error);
     return { ...DEFAULT_SETTINGS };

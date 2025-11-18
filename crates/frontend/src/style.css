@@ -4,6 +4,9 @@
   /* Disable default Tailwind colors */
   --color-*: initial;
 
+  /* Font sizes */
+  --text-base: 14px;
+
   /* Light theme (default) */
   --color-background: #f8f6f0;
   --color-paper: #fbf9f4;
@@ -44,6 +47,10 @@
     background-color: var(--color-background);
     color: var(--color-text);
     overscroll-behavior: none;
+  }
+
+  body {
+    font-size: var(--text-base);
   }
 
   ::selection {

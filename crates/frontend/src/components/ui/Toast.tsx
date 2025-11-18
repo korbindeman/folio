@@ -142,7 +142,7 @@ export const ToastProvider: ParentComponent = (props) => {
                     </button>
                   </Show>
                   <button
-                    class="text-text-muted text-sm opacity-50 hover:opacity-100"
+                    class="text-text-muted opacity-50 hover:opacity-100"
                     onClick={() => removeToast(toast.id)}
                   >
                     ×

@@ -44,7 +44,10 @@ function AppContent() {
     console.log("Loaded settings:", settings);
 
     // Apply font size setting
-    document.documentElement.style.fontSize = `${settings.fontSize}px`;
+    document.documentElement.style.setProperty(
+      "--text-base",
+      `${settings.fontSize}px`,
+    );
 
     // Open last opened note if it exists
     const lastOpenedNote = await getAppState("lastOpenedNote");

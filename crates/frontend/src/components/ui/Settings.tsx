@@ -25,7 +25,7 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
     if (!current) return;
     const updated = { ...current, fontSize: value };
     setSettings(updated);
-    document.documentElement.style.fontSize = `${value}px`;
+    document.documentElement.style.setProperty("--text-base", `${value}px`);
     await saveSettings(updated);
   };
 
@@ -61,10 +61,10 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
       <Card class="w-[400px] px-4 py-4 pb-8">
         <Show when={!loading() && settings()}>
           <div class="space-y-4">
-            <h1 class="text-text pb-1 text-sm">Settings</h1>
+            <h1 class="text-text pb-1">Settings</h1>
 
             <div class="flex items-center justify-between">
-              <label class="text-sm">Font Size</label>
+              <label>Font Size</label>
               <div class="flex items-center gap-2">
                 {settings()!.fontSize !== DEFAULT_SETTINGS.fontSize && (
                   <button
@@ -88,7 +88,7 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
             <hr />
 
             {/*<div class="flex items-center justify-between">
-              <label class="text-sm">Note Collection Location</label>
+              <label>Note Collection Location</label>
               <div class="flex items-center gap-2">
                 <input
                   type="text"
@@ -120,7 +120,7 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
             </div>*/}
 
             <div class="flex items-center justify-between">
-              <label class="text-sm">Automatically check for updates</label>
+              <label>Automatically check for updates</label>
               <div class="flex items-center gap-2">
                 {settings()!.autoCheckUpdates !==
                   DEFAULT_SETTINGS.autoCheckUpdates && (

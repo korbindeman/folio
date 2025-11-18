@@ -115,7 +115,7 @@ export function NoteFinder(props: {
     <Modal
       open={props.open}
       onClose={handleClose}
-      class="bg-paper text-text-muted w-[400px] rounded-md border text-sm outline-none"
+      class="bg-paper text-text-muted w-[400px] rounded-md border outline-none"
     >
       <div class="border-b px-2.5 py-1 pr-4">
         <input
@@ -134,12 +134,12 @@ export function NoteFinder(props: {
         onMouseLeave={() => setSelectedIndex(0)}
       >
         {isLoading() && (
-          <div class="px-2 py-1.5 text-sm opacity-60">
+          <div class="px-2 py-1.5 opacity-60">
             {query().trim() ? "Searching..." : "Loading notes..."}
           </div>
         )}
         {!isLoading() && results().length === 0 && (
-          <div class="px-2 py-1.5 text-sm opacity-60">
+          <div class="px-2 py-1.5 opacity-60">
             {query().trim() ? "No results found" : "No notes available"}
           </div>
         )}

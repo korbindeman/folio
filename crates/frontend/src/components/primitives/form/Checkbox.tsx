@@ -11,7 +11,7 @@ export function Checkbox(props: CheckboxProps) {
         class={`border-border bg-button-bg flex h-5 w-5 cursor-pointer items-center justify-center rounded border ${props.class || ""}`}
         onClick={() => props.onChange(!props.checked)}
       >
-        {props.checked && <span class="text-text text-sm">✓</span>}
+        {props.checked && <span class="text-text">✓</span>}
       </div>
       <input
         type="checkbox"

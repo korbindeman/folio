@@ -50,7 +50,7 @@ export function NumberInput(props: NumberInputProps) {
   };
 
   return (
-    <div class={`inline-flex items-center text-sm ${local.class || ""}`}>
+    <div class={`inline-flex items-center ${local.class || ""}`}>
       <button
         type="button"
         onClick={decrement}
