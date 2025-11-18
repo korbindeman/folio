@@ -50,4 +50,15 @@
     max-height: 300px;
     width: auto;
   }
+
+  & p:has(> img:not(:only-child)) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  & p:has(> img:not(:only-child)) img {
+    flex: 0 1 auto;
+  }
 }
