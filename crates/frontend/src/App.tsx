@@ -49,10 +49,12 @@ function AppContent() {
       `${settings.fontSize}px`,
     );
 
-    // Open last opened note if it exists
-    const lastOpenedNote = await getAppState("lastOpenedNote");
-    if (lastOpenedNote) {
-      notes.setCurrentPath(lastOpenedNote);
+    // Open last opened note if setting is enabled and note exists
+    if (settings.openLastNote) {
+      const lastOpenedNote = await getAppState("lastOpenedNote");
+      if (lastOpenedNote) {
+        notes.setCurrentPath(lastOpenedNote);
+      }
     }
 
     const currentVersion = await getVersion();

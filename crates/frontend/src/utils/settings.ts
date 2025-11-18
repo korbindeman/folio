@@ -10,12 +10,14 @@ export interface Settings {
   fontSize: number;
   notesLocation: string;
   autoCheckUpdates: boolean;
+  openLastNote: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   fontSize: 14,
   notesLocation: "",
   autoCheckUpdates: true,
+  openLastNote: true,
 };
 
 let settingsPath: string | null = null;

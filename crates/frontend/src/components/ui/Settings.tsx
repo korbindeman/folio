@@ -45,6 +45,14 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
     await saveSettings(updated);
   };
 
+  const updateOpenLastNote = async (value: boolean) => {
+    const current = settings();
+    if (!current) return;
+    const updated = { ...current, openLastNote: value };
+    setSettings(updated);
+    await saveSettings(updated);
+  };
+
   // const selectFolder = async () => {
   //   const selected = await openDialog({
   //     directory: true,
@@ -137,6 +145,27 @@ export function Settings(props: { open: boolean; onClose: () => void }) {
                 <Checkbox
                   checked={settings()!.autoCheckUpdates}
                   onChange={updateAutoCheckUpdates}
+                />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <label>Open last viewed note on startup</label>
+              <div class="flex items-center gap-2">
+                {settings()!.openLastNote !== DEFAULT_SETTINGS.openLastNote && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateOpenLastNote(DEFAULT_SETTINGS.openLastNote)
+                    }
+                    class="text-text-muted hover:text-text text-xs hover:underline"
+                  >
+                    Reset
+                  </button>
+                )}
+                <Checkbox
+                  checked={settings()!.openLastNote}
+                  onChange={updateOpenLastNote}
                 />
               </div>
             </div>
