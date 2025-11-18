@@ -24,10 +24,10 @@ jobs:
       - name: Restore file mtimes
         uses: chetan/git-restore-mtime-action@v2
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: "20"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -44,11 +44,11 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: crates/frontend
-        run: bun install
+        run: npm install
 
       - name: Run Rust tests
         run: cargo test --workspace
 
       - name: Build Tauri app
         working-directory: crates/frontend
-        run: bun run tauri build ${{ matrix.args }} --no-bundle
+        run: npm run tauri build ${{ matrix.args }} --no-bundle

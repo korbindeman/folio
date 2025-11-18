@@ -40,10 +40,10 @@ jobs:
       - name: Restore file mtimes
         uses: chetan/git-restore-mtime-action@v2
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: "20"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: crates/frontend
-        run: bun install
+        run: npm install
 
       - name: Build and Release
         uses: tauri-apps/tauri-action@v0.5.14
@@ -86,7 +86,7 @@ jobs:
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: crates/frontend
-          packageManager: bun
+          packageManager: npm
           tagName: ${{ github.ref_name }}
           releaseName: "Zinnia ${{ github.ref_name }}"
           releaseBody: "Release notes:"
