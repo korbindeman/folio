@@ -51,4 +51,4 @@ jobs:
 
       - name: Build Tauri app
         working-directory: crates/frontend
-        run: npm run tauri build ${{ matrix.args }} --no-bundle
+        run: npm run tauri build -- ${{ matrix.args }} --no-bundle
