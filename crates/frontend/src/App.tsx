@@ -122,7 +122,7 @@ function AppContent() {
   return (
     <div class="flex h-screen flex-col pt-0">
       <Navigation />
-      <div class="mt-16 flex flex-1">
+      <div class="mt-14 flex flex-1">
         <EditorManager />
       </div>
       {isDev && (

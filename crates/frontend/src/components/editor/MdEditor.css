@@ -16,7 +16,6 @@
   font-size: var(--text-base);
   font-family: var(--font-sans);
   line-height: var(--text-sm--line-height);
-  /*letter-spacing: var(--tracking-wide);*/
 
   & h1,
   h2,
